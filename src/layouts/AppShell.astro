@@ -1,0 +1,201 @@
+---
+// Authenticated-app shell for every /app/* route (36-frontend-implementation-map.md: "<AppShell /> with
+// persistent sidebar nav"). There is no backend yet: screens run on labelled sample data, and the preview
+// banner can switch every screen to its real empty state from application-ia-ux-copy.md.
+import Base from './Base.astro';
+import Logo from '../components/Logo.astro';
+import Icon from '../components/Icon.astro';
+import { appNav } from '../data/app/nav';
+import { workspace, billing } from '../data/app/sample';
+import '../styles/app.css';
+
+interface Props { title: string; description?: string }
+const { title, description = 'Thosjod app' } = Astro.props;
+const path = Astro.url.pathname.replace(/\/$/, '');
+const isActive = (href: string) => path === href || (href !== '/app/dashboard' && path.startsWith(href + '/'));
+const sectionActive = (item: (typeof appNav)[number]) =>
+  isActive(item.href) || !!item.children?.some((c) => isActive(c.href)) ||
+  (item.href === '/app/visitors' && path.startsWith('/app/visitor/'));
+const pct = Math.round((billing.used / billing.included) * 100);
+---
+
+<Base title={`${title} - Thosjod`} description={description} noindex nofollow>
+  <div class="app" data-app>
+    <div class="preview-bar" role="note">
+      <span class="pb-dot" aria-hidden="true"></span>
+      <span><strong>Product preview</strong> <span class="pb-sub">- sample data only, not connected to a live workspace.</span></span>
+      <button class="pb-toggle" data-preview-toggle aria-pressed="false">
+        <span class="t-sample">Show empty states</span><span class="t-empty">Show sample data</span>
+      </button>
+      <a class="pb-back" href="/">Back to website</a>
+    </div>
+
+    <aside class="side" data-side>
+      <div class="side-top">
+        <a href="/app/dashboard" class="side-logo" aria-label="Thosjod app home"><Logo variant="dark" height={24} /></a>
+        <button class="side-close" data-side-close aria-label="Close menu"><Icon name="x" size={18} /></button>
+      </div>
+      <div class="ws">
+        <span class="ws-avatar">{workspace.name[0]}</span>
+        <span class="ws-text"><strong>{workspace.name}</strong><span>{workspace.plan} plan</span></span>
+      </div>
+
+      <nav class="side-nav" aria-label="App">
+        <ul>
+          {appNav.map((item) => {
+            const open = sectionActive(item);
+            return (
+              <li class:list={{ open }}>
+                <a href={item.href} class:list={['nav-link', { active: open }]} aria-current={path === item.href ? 'page' : undefined}>
+                  <Icon name={item.icon} size={16} />{item.label}
+                </a>
+                {item.children && open && (
+                  <ul class="nav-sub">
+                    {item.children.map((c) => (
+                      <li><a href={c.href} class:list={['nav-sublink', { active: isActive(c.href) || (c.href === '/app/visitors' && path.startsWith('/app/visitor/')) }]} aria-current={path === c.href ? 'page' : undefined}>{c.label}</a></li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      <div class="side-foot">
+        <a href="/app/settings/billing" class="credits sample">
+          <span class="cr-top"><span>Credits this cycle</span><span>{pct}%</span></span>
+          <span class="cr-bar"><span style={`width:${pct}%`}></span></span>
+          <span class="cr-sub">{billing.used.toLocaleString('en-IN')} of {billing.included.toLocaleString('en-IN')}</span>
+        </a>
+      </div>
+    </aside>
+    <div class="side-scrim" data-side-close></div>
+
+    <div class="main">
+      <header class="topbar">
+        <button class="menu-btn" data-side-open aria-label="Open menu"><Icon name="menu" size={18} /></button>
+        <label class="search">
+          <Icon name="search" size={15} />
+          <input type="search" placeholder="Search this page…" data-page-search aria-label="Search this page" />
+        </label>
+        <div class="top-actions">
+          <button class="icon-btn-app" data-toast="No new notifications." aria-label="Notifications"><Icon name="bell" size={16} /></button>
+          <a href="/app/settings/team" class="me" aria-label="Your account"><span>AK</span></a>
+        </div>
+      </header>
+
+      <main class="content" id="main">
+        <slot />
+      </main>
+    </div>
+
+    <div class="toasts" aria-live="polite" data-toasts></div>
+
+    <dialog class="confirm" data-confirm-dialog>
+      <form method="dialog">
+        <p class="confirm-title" data-confirm-title>Are you sure?</p>
+        <p class="confirm-body" data-confirm-body></p>
+        <div class="confirm-actions">
+          <button value="cancel" class="abtn abtn-ghost">Cancel</button>
+          <button value="ok" class="abtn abtn-danger" data-confirm-ok>Confirm</button>
+        </div>
+      </form>
+    </dialog>
+  </div>
+</Base>
+
+<script>
+  const html = document.documentElement;
+
+  // ---- skeleton → content (spec: skeleton screens, not spinners)
+  // (plain timer, not requestAnimationFrame - rAF is paused in background tabs and would leave skeletons up)
+  setTimeout(() => html.classList.add('app-ready'), 450);
+
+  // ---- preview toggle: sample data ↔ real empty states (per-viewer convenience only)
+  const KEY = 'tj-app-preview';
+  const setMode = (mode: string) => {
+    html.dataset.preview = mode;
+    document.querySelectorAll('[data-preview-toggle]').forEach((b) => b.setAttribute('aria-pressed', String(mode === 'empty')));
+  };
+  try { setMode(localStorage.getItem(KEY) === 'empty' ? 'empty' : 'sample'); } catch { setMode('sample'); }
+  document.querySelector('[data-preview-toggle]')?.addEventListener('click', () => {
+    const next = html.dataset.preview === 'empty' ? 'sample' : 'empty';
+    setMode(next);
+    try { localStorage.setItem(KEY, next); } catch {}
+  });
+
+  // ---- toasts
+  const toastRoot = document.querySelector<HTMLElement>('[data-toasts]')!;
+  const toast = (msg: string) => {
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.textContent = msg;
+    toastRoot.appendChild(el);
+    setTimeout(() => el.classList.add('out'), 3200);
+    setTimeout(() => el.remove(), 3700);
+  };
+  (window as any).tjToast = toast;
+
+  // ---- confirm dialog for destructive actions (spec: restate what will be affected)
+  const dlg = document.querySelector<HTMLDialogElement>('[data-confirm-dialog]')!;
+  const confirmAction = (title: string, body: string, okLabel: string): Promise<boolean> =>
+    new Promise((resolve) => {
+      dlg.querySelector('[data-confirm-title]')!.textContent = title;
+      dlg.querySelector('[data-confirm-body]')!.textContent = body;
+      dlg.querySelector('[data-confirm-ok]')!.textContent = okLabel;
+      dlg.returnValue = '';
+      dlg.showModal();
+      dlg.addEventListener('close', () => resolve(dlg.returnValue === 'ok'), { once: true });
+    });
+
+  document.addEventListener('click', async (e) => {
+    const t = (e.target as HTMLElement).closest<HTMLElement>('[data-toast],[data-confirm],[data-open-modal],[data-close-modal],[data-side-open],[data-side-close],[data-dismiss]');
+    if (!t) return;
+    if (t.dataset.sideOpen !== undefined) return document.querySelector('[data-app]')!.classList.add('side-open');
+    if (t.dataset.sideClose !== undefined) return document.querySelector('[data-app]')!.classList.remove('side-open');
+    if (t.dataset.dismiss !== undefined) { t.closest('[data-dismissable]')?.remove(); return; }
+    if (t.dataset.openModal) { e.preventDefault(); document.querySelector<HTMLDialogElement>(`#${t.dataset.openModal}`)?.showModal(); return; }
+    if (t.dataset.closeModal !== undefined) { t.closest('dialog')?.close(); return; }
+    if (t.dataset.confirm) {
+      e.preventDefault();
+      const ok = await confirmAction(t.dataset.confirm, t.dataset.confirmBody ?? '', t.dataset.confirmOk ?? 'Confirm');
+      if (ok && t.dataset.toast) toast(t.dataset.toast);
+      if (ok && t.dataset.removeRow !== undefined) t.closest('tr')?.remove();
+      return;
+    }
+    if (t.dataset.toast) { e.preventDefault(); toast(t.dataset.toast); }
+  });
+
+  // ---- modal forms: toast built from field values, e.g. "Invite sent to {email}."
+  document.querySelectorAll<HTMLFormElement>('form[data-modal-form]').forEach((form) => {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const data = new FormData(form);
+      const msg = (form.dataset.toastTemplate ?? 'Saved.').replace(/\{(\w+)\}/g, (_, k) => String(data.get(k) ?? ''));
+      form.closest('dialog')?.close();
+      form.reset();
+      toast(msg);
+    });
+  });
+
+  // ---- table filters (selects with data-filter-col) + page search
+  const applyFilters = () => {
+    const q = (document.querySelector<HTMLInputElement>('[data-page-search]')?.value ?? '').toLowerCase();
+    document.querySelectorAll<HTMLTableElement>('table[data-filterable]').forEach((table) => {
+      const selects = [...document.querySelectorAll<HTMLSelectElement>(`select[data-filter-for="${table.id}"]`)];
+      table.querySelectorAll<HTMLTableRowElement>('tbody tr').forEach((row) => {
+        const matchSelects = selects.every((s) => !s.value || (row.dataset[s.dataset.filterCol!] ?? '').split('|').includes(s.value));
+        const matchQuery = !q || row.textContent!.toLowerCase().includes(q);
+        row.hidden = !(matchSelects && matchQuery);
+      });
+    });
+  };
+  document.addEventListener('input', (e) => {
+    const el = e.target as HTMLElement;
+    if (el.matches('[data-page-search], select[data-filter-col]')) applyFilters();
+  });
+  document.addEventListener('change', (e) => {
+    if ((e.target as HTMLElement).matches('select[data-filter-col]')) applyFilters();
+  });
+</script>

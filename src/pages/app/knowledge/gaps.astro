@@ -1,0 +1,28 @@
+---
+import AppShell from '../../../layouts/AppShell.astro';
+import AppHeader from '../../../components/app/AppHeader.astro';
+import Panel from '../../../components/app/Panel.astro';
+import Bits from '../../../components/app/Bits.astro';
+import Action from '../../../components/app/Action.astro';
+import { gaps } from '../../../data/app/sample';
+---
+
+<AppShell title="Knowledge Gaps" description="Recurring questions the knowledge base answered poorly or not at all.">
+  <AppHeader title="Knowledge Gaps" desc="Recurring questions the knowledge base answered poorly or not at all." crumbs={[{ label: 'Knowledge', href: '/app/knowledge' }]} />
+
+  <Panel empty="No knowledge gaps detected yet." emptyIcon="book" flush>
+    <div class="tbl-scroll">
+      <table class="atbl" id="t-gaps" data-filterable>
+        <thead><tr><th>Question</th><th>Frequency</th><th>Current Answer Quality <Bits tip="“Answer Quality” reflects how often the agent had to hand off rather than answer directly." /></th><th></th></tr></thead>
+        <tbody>
+          {gaps.map((g) => (
+            <tr>
+              <td class="strong">{g.question}</td><td class="num">{g.frequency}×</td><td><Bits pill={g.quality} /></td>
+              <td style="text-align:right"><Action label="Add answer" variant="ghost" size="sm" href="/app/knowledge" /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </Panel>
+</AppShell>

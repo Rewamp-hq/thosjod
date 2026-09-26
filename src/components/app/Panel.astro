@@ -1,0 +1,39 @@
+---
+// Card with the three states every data screen needs (spec: skeleton loading, sample content, empty state).
+import Icon from '../Icon.astro';
+import Action, { type ActionSpec } from './Action.astro';
+
+interface Props {
+  title?: string;
+  sub?: string;
+  empty?: string;
+  emptyIcon?: string;
+  emptyAction?: ActionSpec;
+  skeletonRows?: number;
+  flush?: boolean;
+}
+const { title, sub, empty, emptyIcon = 'spark', emptyAction, skeletonRows = 5, flush = false } = Astro.props;
+---
+
+<section class="acard has-skel" style={flush ? 'padding:0' : undefined}>
+  {(title || Astro.slots.has('head')) && (
+    <div class="acard-head" style={flush ? 'padding:18px 20px 0' : undefined}>
+      <div>
+        {title && <p class="acard-title">{title}</p>}
+        {sub && <p class="acard-sub">{sub}</p>}
+      </div>
+      <slot name="head" />
+    </div>
+  )}
+  <div class="skel" aria-hidden="true" style={flush ? 'padding:18px 20px' : undefined}>
+    {Array.from({ length: skeletonRows }).map(() => <span></span>)}
+  </div>
+  <div class="sample"><slot /></div>
+  {empty && (
+    <div class="empty-app">
+      <span class="empty-app-icon"><Icon name={emptyIcon} size={20} /></span>
+      <p>{empty}</p>
+      {emptyAction && <Action {...emptyAction} size="sm" />}
+    </div>
+  )}
+</section>

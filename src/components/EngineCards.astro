@@ -1,0 +1,133 @@
+---
+import { engine } from '../data/home';
+import Eyebrow from './Eyebrow.astro';
+import Icon from './Icon.astro';
+const [c1, c2, c3] = engine.cards;
+const toneVar: Record<string, string> = { teal: 'var(--teal)', orange: 'var(--orange)', violet: 'var(--violet)' };
+---
+
+<section class="eng" aria-labelledby="eng-title">
+  <div class="container">
+    <div class="section-title center reveal">
+      <Eyebrow>{engine.eyebrow}</Eyebrow>
+      <h2 id="eng-title" class="h2">{engine.title[0]}<br />{engine.title[1]}</h2>
+      <p class="body-sm eng-sub">{engine.sub}</p>
+    </div>
+
+    <div class="eng-grid">
+      {engine.cards.map((c, i) => (
+        <a href={c.href} class="ecard reveal" data-delay={i}>
+          <div class="ecard-head">
+            <span class={`badge badge-${c.tone}`}>{c.badge}</span>
+            <span>{c.tag}</span>
+          </div>
+
+          <div class="ecard-media">
+            {i === 0 && (
+              <>
+                <img src={c1.image} alt="" loading="lazy" />
+                <div class="ov ov-chat">
+                  <p class="ov-title">Hi there - comparing plans?</p>
+                  <p class="ov-body">I can match you to the right tier in under a minute, or answer anything on this page.</p>
+                  <div class="ov-replies"><span>Compare plans</span><span>Talk to sales</span></div>
+                </div>
+              </>
+            )}
+            {i === 1 && (
+              <>
+                <img src={c2.image} alt="" loading="lazy" />
+                <div class="ov ov-profile">
+                  <div class="ovp-row"><span class="ovp-chip"><Icon name="building" size={12} /> Northwind Logistics</span><span class="ovp-chip ok">Identified</span></div>
+                  <div class="ovp-row"><span class="ovp-chip">ICP fit · High</span><span class="ovp-chip">3rd visit</span></div>
+                  <div class="ovp-row"><span class="ovp-chip"><Icon name="route" size={12} /> Route → Enterprise AE</span><span class="ovp-chip warn">Hot</span></div>
+                </div>
+              </>
+            )}
+            {i === 2 && (
+              <div class="ov-engines">
+                {c3.engines!.map((e, j) => (
+                  <span class="eng-tile" style={`--d:${j * 0.4}s`}>
+                    <span class="eng-dot"></span>
+                    {e}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div class="ecard-foot">
+            <h3 class="card-title">{c.title}</h3>
+            <p class="body-sm">{c.body}</p>
+            <p class="ecard-status" style={`color:${toneVar[c.tone]}`}>{c.status}</p>
+          </div>
+        </a>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .eng { padding: 120px 0 88px; }
+  .eng-sub { max-width: 520px; }
+  .eng-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 56px; }
+  .ecard {
+    display: flex; flex-direction: column;
+    background: #f0efee;
+    border-radius: 16px;
+    padding: 8px;
+    transition: transform 0.4s var(--ease), box-shadow 0.4s var(--ease);
+  }
+  .ecard:hover { transform: translateY(-4px); box-shadow: 0 24px 48px -24px rgba(26, 24, 20, 0.25); }
+  .ecard-head { display: flex; align-items: center; gap: 8px; padding: 8px 8px 14px; font-size: 16px; font-weight: 500; letter-spacing: -0.01em; }
+
+  .ecard-media {
+    position: relative;
+    height: 320px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--ink);
+    display: grid; place-items: center;
+  }
+  .ecard-media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.8s var(--ease); }
+  .ecard:hover .ecard-media img { transform: scale(1.04); }
+  .ecard-media::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(0,0,0,0.45)); pointer-events: none; }
+
+  .ov { position: absolute; z-index: 1; left: 16px; right: 16px; bottom: 16px; }
+  .ov-chat { padding: 14px; background: rgba(255, 255, 255, 0.94); border-radius: 12px; backdrop-filter: blur(8px); }
+  .ov-title { font-size: 14px; font-weight: 500; }
+  .ov-body { font-size: 12px; line-height: 16px; color: var(--muted); margin-top: 4px; }
+  .ov-replies { display: flex; gap: 6px; margin-top: 10px; }
+  .ov-replies span { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: var(--ink); color: #fff; }
+  .ov-replies span + span { background: #fff; color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+
+  .ov-profile { display: flex; flex-direction: column; gap: 6px; }
+  .ovp-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ovp-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; line-height: 16px; padding: 5px 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.94); color: var(--ink); }
+  .ovp-chip.ok { color: var(--teal); }
+  .ovp-chip.warn { color: var(--orange); }
+
+  .ov-engines { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; width: calc(100% - 48px); }
+  .eng-tile {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 14px; border-radius: 10px;
+    font-size: 13px; color: rgba(255, 255, 255, 0.86);
+    background: rgba(255, 255, 255, 0.06);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
+  .eng-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--violet); box-shadow: 0 0 0 3px rgba(89, 74, 255, 0.25); animation: blink 2.4s var(--d) infinite; }
+  @keyframes blink { 0%, 100% { opacity: 0.35; } 40% { opacity: 1; } }
+
+  .ecard-foot { display: flex; flex-direction: column; gap: 8px; padding: 20px 12px 12px; flex: 1; }
+  .ecard-foot .body-sm { flex: 1; }
+  .ecard-status { font-size: 14px; font-weight: 500; letter-spacing: -0.01em; margin-top: 8px; }
+
+  @media (max-width: 1099px) {
+    .eng-grid { grid-template-columns: 1fr 1fr; }
+    .ecard:last-child { grid-column: 1 / -1; }
+  }
+  @media (max-width: 809px) {
+    .eng { padding: 80px 0 56px; }
+    .eng-grid { grid-template-columns: 1fr; margin-top: 32px; }
+    .ecard-media { height: 280px; }
+  }
+</style>

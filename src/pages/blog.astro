@@ -1,0 +1,39 @@
+---
+import { handRoutes } from '../data/handRoutes';
+const route = handRoutes['/blog'];
+// Source: thosjod_content/content/resources/blog-architecture.md (taxonomy only - no articles yet)
+import Page from '../layouts/Page.astro';
+import ContentSection from '../components/page/ContentSection.astro';
+import type { Section } from '../lib/content';
+
+const clusters: [string, string][] = [
+  ['AI Visibility & GEO/AEO', '/features/ai-visibility-geo-aeo'],
+  ['Website Conversion', '/solutions/website-conversion'],
+  ['AI Sales & Support Agents', '/features/conversational-ai-agents'],
+  ['Visitor Intelligence', '/solutions/visitor-intelligence'],
+  ['Lead Qualification & Sales Automation', '/solutions/sales-automation'],
+  ['Revenue Attribution & Analytics', '/features/analytics-intelligence'],
+  ['Industry playbooks', '/industries'],
+];
+
+const sections: Section[] = [
+  {
+    id: 'topics', eyebrow: 'Topics', title: 'What we’ll be writing about.',
+    blocks: [
+      { type: 'p', text: 'New content coming soon. Until then, each topic links to the product page that covers it today.' },
+      { type: 'table', head: ['Topic', 'Link'], rows: clusters.map(([t, u]) => [t, `\`${u}\``]) },
+    ],
+  },
+];
+---
+
+<Page
+  title={route.title}
+  description={route.description}
+  keywords={route.keywords ?? []}
+  aboutProduct
+  hero={{ eyebrow: 'Resources', title: 'Blog', sub: 'Ideas on turning website traffic into pipeline - and staying visible as buyer research moves to AI.' }}
+  crumbs={[{ label: 'Resources', href: '/resources' }, { label: 'Blog', href: '/blog' }]}
+>
+  {sections.map((s, i) => <ContentSection section={s} index={i} />)}
+</Page>

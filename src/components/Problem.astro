@@ -1,0 +1,43 @@
+---
+import { problem } from '../data/home';
+import Eyebrow from './Eyebrow.astro';
+---
+
+<section class="problem container" aria-labelledby="problem-title">
+  <div class="section-title reveal">
+    <Eyebrow>{problem.eyebrow}</Eyebrow>
+    <h2 id="problem-title" class="h2">{problem.title}</h2>
+  </div>
+  <ul class="problem-grid">
+    {problem.items.map((it, i) => (
+      <li class="problem-card reveal" data-delay={i}>
+        <span class="problem-n">0{i + 1}</span>
+        <div>
+          <h3 class="card-title">{it.title}</h3>
+          <p class="body-sm">{it.body}</p>
+        </div>
+      </li>
+    ))}
+  </ul>
+</section>
+
+<style>
+  .problem { padding-top: 120px; }
+  .problem-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 56px; }
+  .problem-card {
+    display: flex; flex-direction: column; justify-content: space-between; gap: 48px;
+    min-height: 240px;
+    padding: 24px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 0 0 1px rgba(26, 24, 20, 0.04);
+  }
+  .problem-n { font-size: 14px; font-weight: 500; color: var(--muted-3); }
+  .problem-card .card-title { margin-bottom: 8px; }
+  @media (max-width: 1099px) { .problem-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 809px) {
+    .problem { padding-top: 80px; }
+    .problem-grid { grid-template-columns: 1fr; margin-top: 32px; }
+    .problem-card { min-height: 0; gap: 24px; }
+  }
+</style>

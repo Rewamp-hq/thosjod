@@ -1,0 +1,32 @@
+---
+import AppShell from '../../../layouts/AppShell.astro';
+import AppHeader from '../../../components/app/AppHeader.astro';
+import SubNav from '../../../components/app/SubNav.astro';
+import Panel from '../../../components/app/Panel.astro';
+import { analyticsNav } from '../../../data/app/nav';
+import { funnel } from '../../../data/app/sample';
+
+const top = funnel[0].value;
+// Flag stages that keep less than 20% of the previous stage
+const rows = funnel.map((f, i) => {
+  const keep = i === 0 ? 1 : f.value / funnel[i - 1].value;
+  return { ...f, pct: (f.value / top) * 100, drop: i > 0 && keep < 0.2 ? `${Math.round((1 - keep) * 100)}% drop-off` : '' };
+});
+---
+
+<AppShell title="Funnel Analytics" description="Visitor progression through funnel stages.">
+  <AppHeader title="Funnel" desc="Visitor progression through funnel stages, with drop-off flags." crumbs={[{ label: 'Analytics', href: '/app/analytics' }]} />
+  <SubNav items={analyticsNav} />
+
+  <Panel title="Last 30 days" empty="Not enough data yet to show a funnel." emptyIcon="chart">
+    <div class="funnel" role="table" aria-label="Funnel stages">
+      {rows.map((r) => (
+        <div class="funnel-row" role="row">
+          <span role="cell">{r.stage}</span>
+          <span class="funnel-bar" role="cell"><span style={`width:${Math.max(r.pct, 1.5)}%`}></span></span>
+          <span role="cell" class="num" style="text-align:right">{r.value.toLocaleString('en-IN')}{r.drop && <><br /><span class="funnel-drop">{r.drop}</span></>}</span>
+        </div>
+      ))}
+    </div>
+  </Panel>
+</AppShell>

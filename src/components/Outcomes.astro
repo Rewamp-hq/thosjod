@@ -1,0 +1,70 @@
+---
+import { outcomes } from '../data/home';
+import Eyebrow from './Eyebrow.astro';
+---
+
+<section class="out" aria-labelledby="out-title">
+  <div class="container">
+    <div class="section-title out-title reveal">
+      <Eyebrow>{outcomes.eyebrow}</Eyebrow>
+      <h2 id="out-title" class="h2">{outcomes.title.join(" ")}</h2>
+      <p class="body-sm">{outcomes.sub}</p>
+    </div>
+
+    <ul class="out-grid">
+      {outcomes.items.map((it, i) => (
+        <li class={`ocard reveal ${Math.floor(i / 2) % 2 === 0 ? (i % 2 === 0 ? 'sm' : 'lg') : (i % 2 === 0 ? 'lg' : 'sm')}`}>
+          <img src={it.image} alt="" loading="lazy" />
+          <div class="ocard-shade" aria-hidden="true"></div>
+          <div class="ocard-body">
+            <p class="ocard-big">{it.big}</p>
+            <div>
+              <p class="ocard-q">{it.body}</p>
+              <div class="ocard-foot">
+                <span class="badge badge-teal">AN</span>
+                <span>
+                  <span class="ocard-label">{it.label}</span>
+                  <span class="ocard-src">Measured in Analytics &amp; Intelligence</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  </div>
+</section>
+
+<style>
+  .out { background: #fff; padding: 64px 0 120px; }
+  /* rows alternate narrow/wide then wide/narrow (500 : 764), like the reference */
+  .out-title { max-width: 720px; }
+  .out-grid { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 56px; }
+  .ocard { position: relative; height: 492px; border-radius: 16px; overflow: hidden; color: #fff; background: var(--ink); }
+  .ocard.sm { flex: 0 0 calc((100% - 16px) * 0.3956); }
+  .ocard.lg { flex: 0 0 calc((100% - 16px) * 0.6044); }
+  .ocard img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 1s var(--ease); }
+  .ocard:hover img { transform: scale(1.04); }
+  .ocard-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10, 9, 8, 0.7) 0%, rgba(10, 9, 8, 0.35) 45%, rgba(10, 9, 8, 0.8) 100%); }
+  .ocard-body { position: relative; height: 100%; padding: 40px; display: flex; flex-direction: column; justify-content: space-between; }
+  .ocard-big { font-family: var(--font-head); font-size: 72px; line-height: 1; letter-spacing: 0.01em; }
+  .ocard-q { font-family: var(--font-head); font-size: 28px; line-height: 34px; max-width: 460px; }
+  .ocard-foot { display: flex; align-items: center; gap: 10px; margin-top: 20px; }
+  .ocard-label { display: block; font-size: 16px; font-weight: 500; line-height: 24px; }
+  .ocard-src { display: block; font-size: 14px; line-height: 20px; color: rgba(255, 255, 255, 0.72); }
+
+  @media (max-width: 1099px) {
+    .ocard.sm, .ocard.lg { flex-basis: calc((100% - 16px) / 2); }
+    .ocard-big { font-size: 56px; }
+    .ocard-q { font-size: 22px; line-height: 28px; }
+  }
+  @media (max-width: 809px) {
+    .out { padding: 56px 0 80px; }
+    .out-grid { margin-top: 32px; gap: 8px; }
+    .ocard.sm, .ocard.lg { flex-basis: 100%; }
+    .ocard { height: 400px; }
+    .ocard-body { padding: 24px; }
+    .ocard-big { font-size: 44px; }
+    .br-d { display: none; }
+  }
+</style>

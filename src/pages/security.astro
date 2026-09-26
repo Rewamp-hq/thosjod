@@ -1,0 +1,59 @@
+---
+import { handRoutes } from '../data/handRoutes';
+const route = handRoutes['/security'];
+// Built from the Security & Governance content in content/pages/enterprise.md
+import Page from '../layouts/Page.astro';
+import ContentSection from '../components/page/ContentSection.astro';
+import type { Section } from '../lib/content';
+import { pageByUrl, hasGap, SHOW_GAPS } from '../lib/content';
+import { heroImage } from '../data/pageMedia';
+
+const enterprise = pageByUrl.get('/enterprise')!;
+const governance = enterprise.sections.find((s) => /security/i.test(s.eyebrow));
+
+const sections: Section[] = [
+  ...(governance ? [{ ...governance, eyebrow: 'Controls', title: 'Security and governance, built into the engine.' }] : []),
+  {
+    id: 'ai-safety', eyebrow: 'AI safety', title: 'Grounded answers. Human handoff.',
+    blocks: [
+      { type: 'p', text: 'Every AI response is restricted to your approved knowledge base. When the agent isn’t certain, it hands the conversation to your team with full context - instead of guessing.' },
+      { type: 'p', text: 'Read how we approach this in our `/responsible-ai` policy.' },
+    ],
+  },
+  {
+    id: 'documents', eyebrow: 'Trust documents', title: 'Policies and agreements.',
+    blocks: [{
+      type: 'table', head: ['Document', 'Link'],
+      rows: [
+        ['Privacy Policy', '`/privacy`'],
+        ['Data Processing Agreement', '`/data-processing`'],
+        ['Sub-processors', '`/subprocessors`'],
+        ['Responsible AI', '`/responsible-ai`'],
+        ['Service Level Agreement', '`/sla`'],
+        ['Acceptable Use Policy', '`/acceptable-use`'],
+      ],
+    }],
+  },
+];
+
+const faq = enterprise.faq.filter((f) => SHOW_GAPS || !hasGap(f.a));
+---
+
+<Page
+  title={route.title}
+  description={route.description}
+  keywords={route.keywords ?? []}
+  aboutProduct
+  hero={{
+    eyebrow: 'Security',
+    title: 'Security that your compliance team can sign off on.',
+    sub: 'The same engine, with the controls your security and compliance teams require.',
+    image: heroImage('/security', 'pages'),
+    primary: { label: 'Talk to Sales', href: '/contact' },
+    secondary: { label: 'Enterprise', href: '/enterprise' },
+  }}
+  crumbs={[{ label: 'Security', href: '/security' }]}
+  faq={faq}
+>
+  {sections.map((s, i) => <ContentSection section={s} index={i} />)}
+</Page>

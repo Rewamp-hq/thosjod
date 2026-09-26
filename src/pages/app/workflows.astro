@@ -1,0 +1,39 @@
+---
+import AppShell from '../../layouts/AppShell.astro';
+import AppHeader from '../../components/app/AppHeader.astro';
+import Panel from '../../components/app/Panel.astro';
+import Bits from '../../components/app/Bits.astro';
+import Icon from '../../components/Icon.astro';
+import FormDialog from '../../components/app/FormDialog.astro';
+import { workflows } from '../../data/app/sample';
+---
+
+<AppShell title="Workflows" description="Visual/rule-based workflow view.">
+  <AppHeader title="Workflows" desc="Visual/rule-based workflow view underlying playbooks and routing rules." crumbs={[{ label: 'Agents', href: '/app/agents' }]} actions={[{ label: 'New Workflow', icon: 'plus', modal: 'dlg-workflow' }]} />
+
+  <Panel empty="No custom workflows yet." emptyIcon="route" emptyAction={{ label: 'New Workflow', modal: 'dlg-workflow' }}>
+    <div style="display:grid;gap:10px">
+      {workflows.map((w) => {
+        const [cond, target] = w.rule.split('→').map((s) => s.trim());
+        return (
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px;border-radius:12px;background:var(--bg)">
+            <strong style="min-width:180px">{w.name}</strong>
+            <span class="pill">{cond}</span>
+            <Icon name="arrow-right" size={14} />
+            <span class="pill violet">{target}</span>
+            <span style="margin-left:auto"><Bits pill={w.status} /></span>
+          </div>
+        );
+      })}
+    </div>
+  </Panel>
+
+  <FormDialog
+    id="dlg-workflow" title="New workflow" submit="Create workflow" toast="Workflow “{name}” created."
+    fields={[
+      { name: 'name', label: 'Name', placeholder: 'e.g. EMEA routing' },
+      { name: 'when', label: 'When', placeholder: 'e.g. geography in EMEA and ICP ≥ 70' },
+      { name: 'then', label: 'Then', type: 'select', options: ['Route to a rep', 'Route to a team', 'Start a playbook', 'Send a webhook'] },
+    ]}
+  />
+</AppShell>

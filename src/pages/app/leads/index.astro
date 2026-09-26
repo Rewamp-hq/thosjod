@@ -1,0 +1,50 @@
+---
+// Spec: Primary Route Lead · Filters: ICP score range, Status · Confirmation: "Lead routed to {rep name}."
+import AppShell from '../../../layouts/AppShell.astro';
+import AppHeader from '../../../components/app/AppHeader.astro';
+import Panel from '../../../components/app/Panel.astro';
+import Bits from '../../../components/app/Bits.astro';
+import FormDialog from '../../../components/app/FormDialog.astro';
+import { leads, reps } from '../../../data/app/sample';
+---
+
+<AppShell title="Leads" description="Qualified leads captured and scored.">
+  <AppHeader title="Leads" desc="Qualified leads captured and scored." actions={[{ label: 'Route Lead', icon: 'route', modal: 'dlg-route-lead' }]} />
+
+  <div class="filters">
+    <label>ICP score
+      <select data-filter-for="t-leads" data-filter-col="band"><option value="">Any</option><option value="80">80–100</option><option value="60">60–79</option><option value="0">Below 60</option></select>
+    </label>
+    <label>Status
+      <select data-filter-for="t-leads" data-filter-col="status"><option value="">All</option><option>New</option><option>Routed</option><option>Booked</option><option>Lost</option></select>
+    </label>
+  </div>
+
+  <Panel empty="No qualified leads yet." emptyIcon="spark" flush>
+    <div class="tbl-scroll">
+      <table class="atbl" id="t-leads" data-filterable>
+        <thead><tr><th>Name</th><th>Company</th><th>ICP Score</th><th>Status</th><th>Assigned Rep</th><th>Created</th></tr></thead>
+        <tbody>
+          {leads.map((l) => (
+            <tr data-status={l.status} data-band={l.icp >= 80 ? '80' : l.icp >= 60 ? '60' : '0'}>
+              <td><a class="row-link" href={`/app/leads/${l.id}`}>{l.name}</a></td>
+              <td>{l.company}</td>
+              <td><Bits score={l.icp} /></td>
+              <td><Bits pill={l.status} /></td>
+              <td class:list={{ muted: !l.rep }}>{l.rep ?? 'Unassigned'}</td>
+              <td class="num">{l.created}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </Panel>
+
+  <FormDialog
+    id="dlg-route-lead" title="Route lead" submit="Route lead" toast="Lead routed to {rep}."
+    fields={[
+      { name: 'lead', label: 'Lead', type: 'select', options: leads.filter((l) => l.status === 'New').map((l) => `${l.name} · ${l.company}`) },
+      { name: 'rep', label: 'Rep', type: 'select', options: reps },
+    ]}
+  />
+</AppShell>

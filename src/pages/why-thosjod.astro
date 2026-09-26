@@ -1,0 +1,93 @@
+---
+import { handRoutes } from '../data/handRoutes';
+const route = handRoutes['/why-thosjod'];
+// Source: thosjod_content/00-strategy/03-product-positioning.md
+import Page from '../layouts/Page.astro';
+import ContentSection from '../components/page/ContentSection.astro';
+import type { Section } from '../lib/content';
+import { hasGap, SHOW_GAPS } from '../lib/content';
+import { heroImage } from '../data/pageMedia';
+
+const ok = (s: string) => SHOW_GAPS || !hasGap(s);
+
+const sections: Section[] = [
+  {
+    id: 'positioning', eyebrow: 'Positioning', title: 'Built for traffic that doesn’t convert.',
+    blocks: [
+      { type: 'p', text: 'For organizations with meaningful website traffic and a conversion rate that doesn’t match it, Thosjod is an AI Website Discovery & Lead Engine that identifies, engages, and qualifies every visitor in real time - form or no form - and natively tracks how the brand shows up across AI answer engines.' },
+      { type: 'p', text: 'Unlike website chatbots, visitor-ID tools, or AI SDR platforms that each solve only one stage of this problem, Thosjod carries one visitor session continuously through identification, conversation, qualification, routing, and analytics - with AI-visibility tracking (GEO/AEO) built in from day one rather than bolted on.' },
+    ],
+  },
+  {
+    id: 'differentiators', eyebrow: 'Why Thosjod', title: 'Five reasons teams choose one engine over a stack.',
+    blocks: [{
+      type: 'ul',
+      items: [
+        '**Captures the visitors every form-based tool misses** - Deanonymization and enrichment identify real name, email, and company for visitors who never fill out a form - the majority of traffic on most sites.',
+        '**Grounded, not guessing** - Every AI response is restricted to your approved knowledge base, with human handoff instead of hallucination - a specific, named guardrail, not a generic “safe AI” claim.',
+        '**AI visibility, built into the lead engine** - Unlike website chatbots, visitor-ID tools and AI SDR platforms, Thosjod tracks AI visibility natively - in the same engine that converts your visitors. Dedicated AI-visibility platforms go deeper on search analytics; Thosjod connects that visibility to the visitors it brings in.',
+        '**One continuous visitor record** - Identification, conversation, qualification, and analytics share one session - most alternatives solve one stage and need integration glue for the rest.',
+        '**No-code, fast time-to-value** - Configure and launch without an engineering sprint (`/features/integration-administration`).',
+      ].filter(ok),
+    }],
+  },
+  {
+    id: 'segments', eyebrow: 'Same product, different door', title: 'How different teams use it.',
+    blocks: [{
+      type: 'table',
+      head: ['Segment', 'What Thosjod does for you', 'Where to start'],
+      rows: [
+        ['Technical / product-led (SaaS)', 'Turn anonymous PLG traffic into a qualified pipeline', '`/features/identification-enrichment`'],
+        ['Non-technical / traditional business', 'An always-on sales rep for your website, no IT required', '`/features/discovery-engagement`'],
+        ['E-commerce', 'Recover the sales you lose to unanswered pre-purchase questions', '`/features/conversational-ai-agents`'],
+        ['Regulated (BFSI, Healthcare, Government)', 'Grounded, auditable AI that guides customers without compliance risk', '`/enterprise`'],
+        ['Marketing / SEO leadership', 'See - and improve - how your brand shows up in ChatGPT and Gemini', '`/features/ai-visibility-geo-aeo`'],
+        ['Enterprise / multi-brand', 'One identity layer and lead-routing standard across every property', '`/features/integration-administration`'],
+      ],
+    }],
+  },
+  {
+    id: 'not', eyebrow: 'Clear boundaries', title: 'What Thosjod is not.',
+    blocks: [{
+      type: 'ul',
+      items: [
+        '**Not a support helpdesk** - Unlike general-purpose customer-support tools (like Ada or Kommunicate), support is one agent type among several, not the core identity.',
+        '**Not a data vendor** - Unlike pure visitor-identification tools (like Warmly), identification feeds a conversational and qualification workflow, not a standalone alert feed.',
+        '**Not an outbound SDR tool** - Unlike Artisan or 11x, outbound follow-up is a downstream capability of an inbound-first engine, not the primary use case.',
+        '**Not a horizontal CX suite** - Unlike Yellow.ai or Haptik, Thosjod is GTM- and lead-engine-specific.',
+      ],
+    }],
+  },
+  {
+    id: 'compare', eyebrow: 'Go deeper', title: 'See the factual comparisons.',
+    blocks: [{
+      type: 'table',
+      head: ['Comparison', 'Link'],
+      rows: [
+        ['vs AI Website Sales Agents', '`/compare/ai-website-sales-agents`'],
+        ['vs No-Code Website Chatbots', '`/compare/no-code-chatbots`'],
+        ['vs AI SDR / Outbound Automation', '`/compare/ai-sdr-outbound-automation`'],
+        ['vs Enterprise Conversational AI (India)', '`/compare/enterprise-conversational-ai-india`'],
+      ],
+    }],
+  },
+];
+---
+
+<Page
+  title={route.title}
+  description={route.description}
+  keywords={route.keywords ?? []}
+  aboutProduct
+  hero={{
+    eyebrow: 'Why Thosjod',
+    title: 'One engine, not a stitched-together stack.',
+    sub: 'Chatbots answer questions. Visitor-ID tools flag traffic. AI SDRs automate outbound. Thosjod carries one visitor from first click to booked meeting - and tracks how AI talks about you.',
+    image: heroImage('/why-thosjod', 'pages'),
+    primary: { label: 'Book a Demo', href: '/demo' },
+    secondary: { label: 'Explore Platform', href: '/platform' },
+  }}
+  crumbs={[{ label: 'Why Thosjod', href: '/why-thosjod' }]}
+>
+  {sections.map((s, i) => <ContentSection section={s} index={i} />)}
+</Page>

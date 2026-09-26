@@ -1,0 +1,46 @@
+---
+import AppShell from '../../../layouts/AppShell.astro';
+import AppHeader from '../../../components/app/AppHeader.astro';
+import SubNav from '../../../components/app/SubNav.astro';
+import Panel from '../../../components/app/Panel.astro';
+import Bits from '../../../components/app/Bits.astro';
+import { analyticsNav } from '../../../data/app/nav';
+import { leads } from '../../../data/app/sample';
+
+const deals = [
+  { lead: leads[0], stage: 'Proposal', value: '₹6.8L' },
+  { lead: leads[1], stage: 'Discovery', value: '₹14.5L' },
+  { lead: leads[4], stage: 'Closed-lost', value: '-' },
+];
+---
+
+<AppShell title="Revenue Analytics" description="Ties conversations/leads to CRM stage and revenue.">
+  <AppHeader title="Revenue" desc="Ties conversations and leads to downstream CRM stage and revenue." crumbs={[{ label: 'Analytics', href: '/app/analytics' }]} />
+  <SubNav items={analyticsNav} />
+
+  <section class="has-skel">
+    <div class="skel metrics" aria-hidden="true"><div class="metric"><span></span></div><div class="metric"><span></span></div><div class="metric"><span></span></div></div>
+    <div class="metrics sample" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      <div class="metric"><span class="metric-k">Attributed pipeline <Bits tip="Open CRM opportunities whose first touch was a Thosjod conversation or identified visit." /></span><span class="metric-v">₹21.3L</span></div>
+      <div class="metric"><span class="metric-k">Attributed closed-won</span><span class="metric-v">₹4.2L</span></div>
+      <div class="metric"><span class="metric-k">Avg. deal size from Thosjod leads</span><span class="metric-v">₹4.2L</span></div>
+    </div>
+    <div class="acard empty-app">
+      <p>Connect your CRM to see revenue attribution.</p>
+      <a class="abtn abtn-sm" href="/app/integrations">Connect CRM</a>
+    </div>
+  </section>
+
+  <Panel title="Attributed opportunities" empty="Connect your CRM to see revenue attribution." emptyAction={{ label: 'Connect CRM', href: '/app/integrations' }} flush>
+    <div class="tbl-scroll">
+      <table class="atbl">
+        <thead><tr><th>Lead</th><th>Company</th><th>CRM stage</th><th>Value</th></tr></thead>
+        <tbody>
+          {deals.map((d) => (
+            <tr><td><a class="row-link" href={`/app/leads/${d.lead.id}`}>{d.lead.name}</a></td><td>{d.lead.company}</td><td><Bits pill={d.stage} /></td><td class="num">{d.value}</td></tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </Panel>
+</AppShell>

@@ -1,0 +1,49 @@
+---
+// Source: thosjod_content/content/resources/index.md
+import Page from '../layouts/Page.astro';
+import ContentSection from '../components/page/ContentSection.astro';
+import type { Section } from '../lib/content';
+import { pageByUrl } from '../lib/content';
+
+const src = pageByUrl.get('/resources')!;
+
+const sections: Section[] = [
+  {
+    id: 'library', eyebrow: 'Library', title: 'Learn, compare, and get help.',
+    blocks: [{
+      type: 'table', head: ['Resource', 'What you’ll find', 'Link'],
+      rows: [
+        ['Blog', 'Ideas on website conversion and AI visibility.', '`/blog`'],
+        ['Guides', 'Long-form how-tos.', '`/guides`'],
+        ['Case Studies', 'How teams use Thosjod in practice.', '`/case-studies`'],
+        ['Glossary', 'Definitions for GEO, AEO, deanonymization and more.', '`/glossary`'],
+        ['Changelog', 'Product updates as they ship.', '`/changelog`'],
+        ['Documentation', 'Technical and product docs.', '`/docs`'],
+        ['Help Center', 'Account, setup, and billing support.', '`/help`'],
+        ['Webinars', 'Live and recorded sessions.', '`/webinars`'],
+        ['Templates', 'Playbooks, prompts, and checklists.', '`/templates`'],
+      ],
+    }],
+  },
+  {
+    id: 'free-tools', eyebrow: 'Free tools', title: 'Check where you stand today.',
+    blocks: [{
+      type: 'table', head: ['Tool', 'What it does', 'Link'],
+      rows: [
+        ['AI Visibility Audit', 'See whether your brand is mentioned when buyers ask AI.', '`/tools/ai-visibility-audit`'],
+        ['GEO/AEO Audit', 'An explainable, rule-based score for your site.', '`/tools/geo-aeo-audit`'],
+        ['Website Conversion Audit', 'A directional estimate of the traffic you’re not capturing.', '`/tools/website-conversion-audit`'],
+      ],
+    }],
+  },
+];
+---
+
+<Page
+  title={src.seoTitle}
+  description={src.description}
+  hero={{ eyebrow: 'Resources', title: src.title, sub: src.sub }}
+  crumbs={[{ label: 'Resources', href: '/resources' }]}
+>
+  {sections.map((s, i) => <ContentSection section={s} index={i} />)}
+</Page>

@@ -1,0 +1,10 @@
+---
+// Small section label with Primefold's leading arrow glyph
+interface Props { light?: boolean }
+const { light = false } = Astro.props;
+---
+
+<p class="eyebrow" style={light ? 'color:rgba(255,255,255,.8)' : undefined}>
+  <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 3v5.5h8M8.5 6l2.5 2.5L8.5 11" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" /></svg>
+  <slot />
+</p>

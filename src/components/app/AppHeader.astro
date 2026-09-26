@@ -1,0 +1,31 @@
+---
+import Action, { type ActionSpec } from './Action.astro';
+import Icon from '../Icon.astro';
+
+interface Props {
+  title: string;
+  desc?: string;
+  crumbs?: { label: string; href: string }[];
+  actions?: ActionSpec[];
+}
+const { title, desc, crumbs = [], actions = [] } = Astro.props;
+---
+
+<div class="ahead">
+  <div>
+    {crumbs.length > 0 && (
+      <nav class="ahead-crumb" aria-label="Breadcrumb">
+        {crumbs.map((c) => (<><a href={c.href}>{c.label}</a><Icon name="arrow-right" size={12} /></>))}
+        <span aria-current="page">{title}</span>
+      </nav>
+    )}
+    <h1>{title}</h1>
+    {desc && <p class="ahead-desc">{desc}</p>}
+  </div>
+  {(actions.length > 0 || Astro.slots.has('default')) && (
+    <div class="ahead-actions">
+      <slot />
+      {actions.map((a, i) => <Action {...a} variant={a.variant ?? (i === actions.length - 1 ? 'primary' : 'ghost')} />)}
+    </div>
+  )}
+</div>

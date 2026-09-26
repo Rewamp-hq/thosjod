@@ -1,0 +1,97 @@
+---
+import AppShell from '../../layouts/AppShell.astro';
+import AppHeader from '../../components/app/AppHeader.astro';
+import Panel from '../../components/app/Panel.astro';
+import Bits from '../../components/app/Bits.astro';
+import Icon from '../../components/Icon.astro';
+import { weekly, leads, conversations, visitors } from '../../data/app/sample';
+
+const last = (a: number[]) => a[a.length - 1];
+const delta = (a: number[]) => Math.round(((last(a) - a[a.length - 2]) / a[a.length - 2]) * 100);
+const metrics = [
+  { k: 'Inbound meetings', v: String(last(weekly.meetings)), d: delta(weekly.meetings), sub: 'this week' },
+  { k: 'Active conversations', v: '18', d: 12, sub: 'right now' },
+  { k: 'Leads this week', v: String(last(weekly.leads)), d: delta(weekly.leads), sub: 'qualified' },
+  { k: 'MRR-attributed revenue', v: '₹4.2L', d: 9, sub: 'from Thosjod leads', tip: 'Revenue from closed-won deals whose first touch was a Thosjod conversation or identified visit, as reported by your CRM.' },
+];
+const max = Math.max(...weekly.meetings, ...weekly.leads);
+---
+
+<AppShell title="Dashboard" description="Overview of engagement, leads, meetings, and revenue metrics.">
+  <div class="promo sample" data-dismissable>
+    <Icon name="spark" size={18} />
+    <p><strong>New: weekly GEO/AEO audits.</strong> See how the explainable audit ties every lost point to a fixable issue.</p>
+    <a class="abtn abtn-sm" href="/demo">Book a Demo</a>
+    <button class="promo-x" data-dismiss aria-label="Dismiss"><Icon name="x" size={16} /></button>
+  </div>
+
+  <AppHeader title="Dashboard" desc="Overview of engagement, leads, meetings, and revenue metrics." actions={[{ label: 'Export', icon: 'download', toast: 'Dashboard export started - you’ll get an email when it’s ready.', variant: 'ghost' }]} />
+
+  <section class="has-skel">
+    <div class="skel metrics" aria-hidden="true">{metrics.map(() => <div class="metric"><span></span><span></span></div>)}</div>
+    <div class="metrics sample">
+      {metrics.map((m) => (
+        <div class="metric">
+          <span class="metric-k">{m.k}{m.tip && <Bits tip={m.tip} />}</span>
+          <span class="metric-v">{m.v}</span>
+          <span class:list={['metric-d', { down: m.d < 0 }]}>{m.d >= 0 ? '▲' : '▼'} {Math.abs(m.d)}% · {m.sub}</span>
+        </div>
+      ))}
+    </div>
+    <div class="acard empty-app">
+      <span class="empty-app-icon"><Icon name="grid" size={20} /></span>
+      <p>No activity yet - install the widget to start capturing visitors.</p>
+      <a class="abtn abtn-sm" href="/app/onboarding">View Install Instructions</a>
+    </div>
+  </section>
+
+  <div class="grid-main sample">
+    <Panel title="Meetings & leads" sub="Last 4 weeks">
+      <div class="bars" role="img" aria-label="Weekly meetings and leads">
+        {weekly.labels.map((l, i) => (
+          <div class="bar">
+            <b>{weekly.leads[i]}</b>
+            <div class="bar-cols">
+              <i style={`height:${(weekly.meetings[i] / max) * 100}%`}></i>
+              <i class="alt" style={`height:${(weekly.leads[i] / max) * 100}%`}></i>
+            </div>
+            <span>{l}</span>
+          </div>
+        ))}
+      </div>
+      <p class="acard-sub" style="margin-top:10px">■ Meetings &nbsp; <span style="color:var(--teal)">■</span> Leads</p>
+    </Panel>
+
+    <Panel title="Newest leads">
+      <table class="atbl">
+        <tbody>
+          {leads.slice(0, 4).map((l) => (
+            <tr><td><a class="row-link" href={`/app/leads/${l.id}`}>{l.name}</a><br /><span class="muted">{l.company}</span></td><td><Bits pill={l.status} /></td></tr>
+          ))}
+        </tbody>
+      </table>
+      <p style="margin-top:12px"><a class="linkish" href="/app/leads">All leads</a></p>
+    </Panel>
+  </div>
+
+  <div class="grid-2 sample">
+    <Panel title="Recent conversations">
+      <table class="atbl">
+        <tbody>
+          {conversations.slice(0, 4).map((c) => (
+            <tr><td><a class="row-link" href={`/app/conversations/${c.id}`}>{c.visitor}</a></td><td><Bits pill={c.agent} /></td><td class="muted">{c.outcome}</td></tr>
+          ))}
+        </tbody>
+      </table>
+    </Panel>
+    <Panel title="Visitors identified today">
+      <table class="atbl">
+        <tbody>
+          {visitors.filter((v) => v.company).slice(0, 4).map((v) => (
+            <tr><td><a class="row-link" href={`/app/visitor/${v.id}`}>{v.company}</a></td><td><Bits score={v.icp} /></td><td class="muted">{v.pages} pages</td></tr>
+          ))}
+        </tbody>
+      </table>
+    </Panel>
+  </div>
+</AppShell>

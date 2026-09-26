@@ -1,0 +1,61 @@
+---
+// Spec: "API key management (Scale/Enterprise)." Primary: Generate New API Key
+// Confirmation: "New key generated - copy it now, it won't be shown again."
+// Tooltip: "Treat your API key like a password - it grants full account access."
+import AppShell from '../../../layouts/AppShell.astro';
+import AppHeader from '../../../components/app/AppHeader.astro';
+import SubNav from '../../../components/app/SubNav.astro';
+import Panel from '../../../components/app/Panel.astro';
+import Bits from '../../../components/app/Bits.astro';
+import Icon from '../../../components/Icon.astro';
+import { settingsNav } from '../../../data/app/nav';
+
+const TIP = 'Treat your API key like a password - it grants full account access.';
+---
+
+<AppShell title="API Settings" description="API key management (Scale/Enterprise).">
+  <AppHeader title="API" desc="API key management (Scale/Enterprise)." crumbs={[{ label: 'Settings', href: '/app/settings' }]}>
+    <button class="abtn" data-gen-key><Icon name="key" size={15} />Generate New API Key</button>
+  </AppHeader>
+  <SubNav items={settingsNav} />
+
+  <p class="acard" style="font-size:14px">API access is included on Scale and Enterprise plans. This preview lets you try the key flow - keys generated here are random placeholders and don’t work anywhere.</p>
+
+  <section class="acard" data-key-box hidden>
+    <p class="acard-title" style="margin-bottom:8px">New key generated - copy it now, it won’t be shown again. <Bits tip={TIP} /></p>
+    <div class="keybox"><span data-key style="flex:1"></span><button class="abtn abtn-sm abtn-ghost" data-copy-key><Icon name="copy" size={13} />Copy</button></div>
+  </section>
+
+  <Panel title="Keys" empty="No API keys yet." emptyIcon="key" flush>
+    <table class="atbl">
+      <thead><tr><th>Name</th><th>Key</th><th>Created</th><th>Last used</th><th></th></tr></thead>
+      <tbody data-keys>
+        <tr>
+          <td class="strong">Webhook relay</td><td class="num muted">tj_live_••••••••3f9a</td><td class="num">2026-09-10</td><td class="num">2026-09-26</td>
+          <td style="text-align:right"><button class="abtn abtn-sm abtn-ghost" data-confirm="Revoke “Webhook relay”?" data-confirm-body="Any system using key ••••3f9a - including your webhook relay - will immediately lose access to the Thosjod API. This can’t be undone." data-confirm-ok="Revoke key" data-toast="Key revoked." data-remove-row>Revoke</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </Panel>
+</AppShell>
+
+<script>
+  const box = document.querySelector<HTMLElement>('[data-key-box]')!;
+  const keyEl = document.querySelector<HTMLElement>('[data-key]')!;
+  document.querySelector('[data-gen-key]')!.addEventListener('click', () => {
+    const bytes = crypto.getRandomValues(new Uint8Array(24));
+    const key = 'tj_preview_' + Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+    keyEl.textContent = key;
+    box.hidden = false;
+    // Only the masked form stays in the table - the full key is never shown again
+    const row = document.createElement('tr');
+    row.innerHTML = '<td class="strong">New key</td><td class="num muted"></td><td class="num">Today</td><td class="num">Never</td><td></td>';
+    row.children[1].textContent = `tj_preview_••••••••${key.slice(-4)}`;
+    document.querySelector('[data-keys]')!.prepend(row);
+    (window as any).tjToast?.('New key generated - copy it now, it won’t be shown again.');
+  });
+  document.querySelector('[data-copy-key]')!.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(keyEl.textContent ?? ''); (window as any).tjToast?.('Key copied.'); }
+    catch { (window as any).tjToast?.('Copy failed - select the key and copy it manually.'); }
+  });
+</script>

@@ -1,0 +1,73 @@
+---
+import { handRoutes } from '../../data/handRoutes';
+const route = handRoutes['/integrations/crm'];
+// CRM hub (planned in 02-sitemap-and-page-inventory.md, no dedicated content file).
+// Assembled from existing content so it stays in sync with the source:
+// integrations/index.md, integrations/hubspot.md, integrations/salesforce.md,
+// features/integration-administration.md and features/qualification-routing.md.
+import Page from '../../layouts/Page.astro';
+import ContentSection from '../../components/page/ContentSection.astro';
+import type { Block, Section } from '../../lib/content';
+import { pageByUrl } from '../../lib/content';
+import { heroImage } from '../../data/pageMedia';
+
+const get = (u: string) => pageByUrl.get(u)!;
+const index = get('/integrations');
+const hubspot = get('/integrations/hubspot');
+const salesforce = get('/integrations/salesforce');
+const admin = get('/features/integration-administration');
+const routing = get('/features/qualification-routing');
+
+// "**HubSpot** - two-way sync … (`/integrations/hubspot`)" bullets from the index's CRM section
+const crmBullets = (index.sections.find((s) => /^CRM$/i.test(s.eyebrow))?.blocks.find((b) => b.type === 'ul') as Extract<Block, { type: 'ul' }> | undefined)?.items ?? [];
+const crmRows = crmBullets.map((item) => {
+  const name = item.match(/^\*\*([^*]+)\*\*/)?.[1] ?? item;
+  const desc = item.replace(/^\*\*[^*]+\*\*\s*[-–-]\s*/, '').replace(/\s*\(`[^`]+`\)\.?$/, '');
+  const url = item.match(/`(\/[^`]+)`/)?.[1] ?? '/integrations';
+  return [name, desc, `\`${url}\``];
+});
+
+// CRM rows of the Integration & Administration capability table
+const adminTable = admin.sections.flatMap((s) => s.blocks).find((b) => b.type === 'table') as Extract<Block, { type: 'table' }> | undefined;
+const crmFeatures = adminTable ? { ...adminTable, rows: adminTable.rows.filter((r) => /crm/i.test(r[0])) } : null;
+
+// "What syncs" bullets from the HubSpot and Salesforce pages
+const syncItems = (p: typeof hubspot, label: string) =>
+  ((p.sections.find((s) => /what syncs/i.test(s.eyebrow))?.blocks.find((b) => b.type === 'ul') as Extract<Block, { type: 'ul' }> | undefined)?.items ?? []).map((i) => `**${label}** - ${i}`);
+
+const sections: Section[] = [
+  {
+    id: 'supported-crms', eyebrow: 'Supported CRMs', title: 'Native connectors for the CRMs sales teams run on.',
+    blocks: [{ type: 'table', head: ['CRM', 'What it does', 'Link'], rows: crmRows }],
+  },
+  ...(crmFeatures && crmFeatures.rows.length
+    ? [{ id: 'how-it-works', eyebrow: 'How it works', title: 'Two-way sync, not another export.', blocks: [crmFeatures] as Block[] }]
+    : []),
+  {
+    id: 'what-syncs', eyebrow: 'What syncs', title: 'Every qualified lead arrives with its full context.',
+    blocks: [{ type: 'ul', items: [...syncItems(hubspot, 'HubSpot'), ...syncItems(salesforce, 'Salesforce')] }],
+  },
+];
+
+const faq = [...admin.faq, ...routing.faq, ...hubspot.faq, ...salesforce.faq, ...index.faq]
+  .filter((f) => /crm|hubspot|salesforce|sync|integrat|see your tool/i.test(f.q + f.a));
+---
+
+<Page
+  title={route.title}
+  description={route.description}
+  keywords={route.keywords ?? []}
+  aboutProduct
+  hero={{
+    eyebrow: 'Integrations',
+    title: 'Your CRM, always in sync.',
+    sub: 'Native connectors push new and updated records to HubSpot and Salesforce and pull existing record data back in real time - no manual entry, no duplicate records.',
+    image: heroImage('/integrations/crm', 'integrations'),
+    primary: { label: 'Book a Demo', href: '/demo' },
+    secondary: { label: 'All integrations', href: '/integrations' },
+  }}
+  crumbs={[{ label: 'Integrations', href: '/integrations' }, { label: 'CRM', href: '/integrations/crm' }]}
+  faq={faq}
+>
+  {sections.map((s, i) => <ContentSection section={s} index={i} />)}
+</Page>

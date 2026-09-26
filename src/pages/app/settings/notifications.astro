@@ -1,0 +1,33 @@
+---
+import AppShell from '../../../layouts/AppShell.astro';
+import AppHeader from '../../../components/app/AppHeader.astro';
+import SubNav from '../../../components/app/SubNav.astro';
+import { settingsNav } from '../../../data/app/nav';
+
+const alerts = [
+  { t: 'New lead', d: 'When a visitor is qualified against your ICP', on: true },
+  { t: 'Meeting booked', d: 'When an agent books a meeting on a rep’s calendar', on: true },
+  { t: 'Audit complete', d: 'When a GEO/AEO audit finishes', on: true },
+  { t: 'Conversation handed off', d: 'When an agent hands a visitor to your team', on: true },
+  { t: 'Knowledge gap detected', d: 'When the same question goes unanswered repeatedly', on: false },
+  { t: 'Credits at 80%', d: 'When this cycle’s credit usage reaches 80%', on: true },
+];
+---
+
+<AppShell title="Notifications" description="Configure alert preferences.">
+  <AppHeader title="Notifications" desc="Configure alert preferences (new lead, meeting booked, audit complete, etc.)." crumbs={[{ label: 'Settings', href: '/app/settings' }]} actions={[{ label: 'Save Preferences', toast: 'Preferences saved.' }]} />
+  <SubNav items={settingsNav} />
+
+  <section class="acard" style="max-width:760px">
+    <div class="toggle-row" style="font-size:12px;color:var(--muted-3)"><span>Alert</span><span style="display:flex;gap:26px"><span>Email</span><span>In-app</span></span></div>
+    {alerts.map((a) => (
+      <div class="toggle-row">
+        <span>{a.t}<small>{a.d}</small></span>
+        <span style="display:flex;gap:24px">
+          <label class="switch" aria-label={`${a.t} by email`}><input type="checkbox" checked={a.on} /><span></span></label>
+          <label class="switch" aria-label={`${a.t} in-app`}><input type="checkbox" checked /><span></span></label>
+        </span>
+      </div>
+    ))}
+  </section>
+</AppShell>

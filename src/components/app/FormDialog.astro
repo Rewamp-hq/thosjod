@@ -1,0 +1,30 @@
+---
+// Modal form opened by an Action with `modal="<id>"`. On submit the shell shows a toast built from
+// `toast` with {fieldName} placeholders (e.g. "Invite sent to {email}.").
+interface Field { name: string; label: string; type?: string; options?: string[]; placeholder?: string; hint?: string; required?: boolean }
+interface Props { id: string; title: string; submit: string; toast: string; fields: Field[] }
+const { id, title, submit, toast, fields } = Astro.props;
+---
+
+<dialog id={id}>
+  <form data-modal-form data-toast-template={toast}>
+    <p class="dlg-title">{title}</p>
+    {fields.map((f) => (
+      <label class="field">
+        {f.label}
+        {f.type === 'textarea' ? (
+          <textarea name={f.name} rows="4" required={f.required !== false} placeholder={f.placeholder}></textarea>
+        ) : f.type === 'select' ? (
+          <select name={f.name} required={f.required !== false}>{f.options!.map((o) => <option>{o}</option>)}</select>
+        ) : (
+          <input name={f.name} type={f.type ?? 'text'} required={f.required !== false} placeholder={f.placeholder} />
+        )}
+        {f.hint && <span class="field-hint">{f.hint}</span>}
+      </label>
+    ))}
+    <div class="dlg-actions">
+      <button type="button" class="abtn abtn-ghost" data-close-modal>Cancel</button>
+      <button type="submit" class="abtn">{submit}</button>
+    </div>
+  </form>
+</dialog>

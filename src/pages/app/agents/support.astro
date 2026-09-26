@@ -1,0 +1,83 @@
+---
+// Spec: "Configure the Support Agent's knowledge sources and ticket-escalation rules."
+// Primary: Save Configuration · Secondary: Test Agent (sandbox conversation)
+import AppShell from '../../../layouts/AppShell.astro';
+import AppHeader from '../../../components/app/AppHeader.astro';
+import { knowledge } from '../../../data/app/sample';
+---
+
+<AppShell title="Support Agent" description="Configure the Support Agent.">
+  <AppHeader
+    title="Support Agent"
+    desc="Configure the Support Agent's knowledge sources and ticket-escalation rules."
+    crumbs={[{ label: 'Agents', href: '/app/agents' }]}
+    actions={[
+      { label: 'Test Agent', icon: 'chat', modal: 'dlg-test', variant: 'ghost' },
+      { label: 'Save Configuration', toast: 'Configuration saved.' },
+    ]}
+  />
+
+  <div class="grid-2">
+    <section class="acard">
+      <p class="acard-title" style="margin-bottom:6px">Knowledge sources</p>
+      <p class="acard-sub" style="margin-bottom:10px">Answers are grounded only in the sources you enable.</p>
+      {knowledge.map((k, i) => (
+        <div class="toggle-row"><span>{k.source}<small>{k.type} · last synced {k.synced}</small></span><label class="switch"><input type="checkbox" checked={i !== 3} /><span></span></label></div>
+      ))}
+      <p style="margin-top:12px"><a class="linkish" href="/app/knowledge">Manage knowledge base</a></p>
+    </section>
+
+    <section class="acard">
+      <p class="acard-title" style="margin-bottom:14px">Ticket escalation</p>
+      <div style="display:grid;gap:14px">
+        <div class="toggle-row"><span>Create a ticket when the agent hands off<small>Includes the full transcript and visitor context.</small></span><label class="switch"><input type="checkbox" checked /><span></span></label></div>
+        <label class="field">Escalate after
+          <select><option>1 unanswered question</option><option>2 unanswered questions</option><option>Visitor asks for a human</option></select>
+        </label>
+        <label class="field">Send tickets to
+          <select><option>Support queue (email)</option><option>Webhook</option></select>
+        </label>
+      </div>
+    </section>
+  </div>
+
+  <dialog id="dlg-test">
+    <form method="dialog" style="gap:12px">
+      <p class="dlg-title">Test Agent</p>
+      <p class="acard-sub">Sandbox conversation. Nothing here reaches visitors or your CRM.</p>
+      <div class="chatlog" data-sandbox style="max-height:260px;overflow:auto">
+        <div class="cmsg agent"><div class="cmsg-bubble">Hi! Ask me anything your knowledge base covers.</div></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <input class="field" style="flex:1;padding:8px 10px;border-radius:9px;border:0;box-shadow:inset 0 0 0 1px var(--line);font:inherit" data-sandbox-input placeholder="Type a test question…" />
+        <button type="button" class="abtn" data-sandbox-send>Send</button>
+      </div>
+      <div class="dlg-actions"><button class="abtn abtn-ghost" value="close">Close</button></div>
+    </form>
+  </dialog>
+</AppShell>
+
+<script>
+  // Sandbox preview: without a live workspace the agent can't answer, so it says so honestly.
+  const log = document.querySelector<HTMLElement>('[data-sandbox]')!;
+  const input = document.querySelector<HTMLInputElement>('[data-sandbox-input]')!;
+  const add = (cls: string, text: string) => {
+    const d = document.createElement('div');
+    d.className = `cmsg ${cls}`;
+    const b = document.createElement('div');
+    b.className = 'cmsg-bubble';
+    b.textContent = text;
+    d.appendChild(b);
+    log.appendChild(d);
+    log.scrollTop = log.scrollHeight;
+  };
+  const send = () => {
+    const q = input.value.trim();
+    if (!q) return;
+    add('visitor', q);
+    input.value = '';
+    setTimeout(() => add('agent', 'In the live product I’d answer from your enabled knowledge sources, or hand off if none cover it. This preview isn’t connected to a workspace yet.'), 500);
+  };
+  document.querySelector('[data-sandbox-send]')!.addEventListener('click', send);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); send(); } });
+</script>

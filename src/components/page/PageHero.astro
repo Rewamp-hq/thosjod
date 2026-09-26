@@ -1,0 +1,89 @@
+---
+import { md } from '../../lib/inline';
+import Icon from '../Icon.astro';
+
+interface Props {
+  title: string;
+  sub?: string;
+  eyebrow?: string;
+  crumbs?: { label: string; href: string }[];
+  primary?: { label: string; href: string } | null;
+  secondary?: { label: string; href: string } | null;
+  image?: string | null;
+  compact?: boolean;
+}
+const { title, sub, eyebrow, crumbs = [], primary, secondary, image, compact = false } = Astro.props;
+const dark = !!image;
+const long = title.length > 70;
+---
+
+<section class:list={['ph', dark ? 'ph-dark' : 'ph-light', { compact }]} data-hero={dark ? '' : undefined}>
+  {dark && (
+    <div class="ph-media" aria-hidden="true">
+      <img src={image} alt="" fetchpriority="high" />
+      <div class="ph-shade"></div>
+    </div>
+  )}
+  <div class="container ph-body">
+    {crumbs.length > 0 && (
+      <nav class="ph-crumbs" aria-label="Breadcrumb">
+        <ol>
+          <li><a href="/">Home</a></li>
+          {crumbs.map((c, i) => (
+            <li>
+              <Icon name="arrow-right" size={12} />
+              {i === crumbs.length - 1 ? <span aria-current="page">{c.label}</span> : <a href={c.href}>{c.label}</a>}
+            </li>
+          ))}
+        </ol>
+      </nav>
+    )}
+    {eyebrow && <p class="ph-eyebrow">{eyebrow}</p>}
+    <h1 class:list={['h1 ph-title', { long }]}>{title}</h1>
+    {sub && <p class="lead ph-sub" set:html={md(sub)} />}
+    {(primary || secondary) && (
+      <div class="ph-ctas">
+        {primary && <a class:list={['btn', dark ? 'btn-white' : 'btn-dark']} href={primary.href}>{primary.label}</a>}
+        {secondary && <a class:list={['btn', dark ? 'btn-glass' : 'btn-ghost']} href={secondary.href}>{secondary.label}</a>}
+      </div>
+    )}
+  </div>
+</section>
+
+<style>
+  .ph { position: relative; overflow: hidden; }
+  .ph-dark { min-height: 640px; height: 78vh; max-height: 820px; color: #fff; background: #000; display: flex; align-items: flex-end; }
+  .ph-dark.compact { min-height: 540px; height: 64vh; }
+  .ph-media, .ph-shade { position: absolute; inset: 0; }
+  .ph-media img { width: 100%; height: 100%; object-fit: cover; animation: phZoom 14s ease-out both; }
+  @keyframes phZoom { from { transform: scale(1.08); } to { transform: scale(1); } }
+  .ph-shade { background: linear-gradient(180deg, rgba(0,0,0,.6) 0%, rgba(0,0,0,.45) 45%, rgba(0,0,0,.72) 100%); }
+  .ph-body { position: relative; width: 100%; padding-top: 150px; padding-bottom: 88px; }
+  .ph-light { background: var(--bg); }
+  .ph-light .ph-body { padding-top: 168px; padding-bottom: 40px; }
+
+  .ph-crumbs ol { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; list-style: none; margin: 0 0 28px; padding: 0; font-size: 13px; }
+  .ph-crumbs li { display: inline-flex; align-items: center; gap: 6px; }
+  .ph-crumbs a { opacity: 0.7; transition: opacity 0.2s; }
+  .ph-crumbs a:hover { opacity: 1; }
+  .ph-crumbs svg { opacity: 0.5; }
+  .ph-light .ph-crumbs { color: var(--muted); }
+
+  .ph-eyebrow { display: inline-flex; font-size: 14px; font-weight: 500; line-height: 20px; margin-bottom: 16px; opacity: 0.85; }
+  .ph-light .ph-eyebrow { color: var(--muted-2); opacity: 1; }
+  .ph-title { max-width: 980px; text-wrap: balance; }
+  .ph-title.long { font-size: 48px; line-height: 56px; max-width: 1040px; }
+  @media (max-width: 809px) { .ph-title.long { font-size: 32px; line-height: 38px; } }
+  .ph-light .ph-title { color: var(--ink-2); }
+  .ph-sub { margin-top: 20px; max-width: 640px; color: rgba(255, 255, 255, 0.9); }
+  .ph-light .ph-sub { color: var(--muted); }
+  .ph-sub :global(a) { text-decoration: underline; text-underline-offset: 3px; }
+  .ph-ctas { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 32px; }
+
+  @media (max-width: 809px) {
+    .ph-dark { min-height: 560px; height: auto; }
+    .ph-body { padding-top: 120px; padding-bottom: 56px; }
+    .ph-light .ph-body { padding-top: 120px; padding-bottom: 24px; }
+    .ph-crumbs ol { margin-bottom: 20px; }
+  }
+</style>

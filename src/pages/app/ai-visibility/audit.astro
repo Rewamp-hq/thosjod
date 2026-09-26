@@ -1,0 +1,56 @@
+---
+// Spec: Primary "Run New Audit" · Loading "Running audit - this can take a few minutes."
+// Success "Audit complete - {N} issues found."
+import AppShell from '../../../layouts/AppShell.astro';
+import AppHeader from '../../../components/app/AppHeader.astro';
+import SubNav from '../../../components/app/SubNav.astro';
+import Panel from '../../../components/app/Panel.astro';
+import Bits from '../../../components/app/Bits.astro';
+import { visibilityNav } from '../../../data/app/nav';
+import { auditIssues } from '../../../data/app/sample';
+
+const lost = auditIssues.reduce((n, i) => n + i.points, 0);
+const score = 100 - lost;
+---
+
+<AppShell title="GEO/AEO Audit" description="Run and review the rule-based site audit.">
+  <AppHeader title="GEO/AEO Audit" desc="Run and review the rule-based site audit." crumbs={[{ label: 'AI Visibility', href: '/app/ai-visibility' }]}>
+    <button class="abtn" data-run-audit data-issues={auditIssues.length}>Run New Audit</button>
+  </AppHeader>
+  <SubNav items={visibilityNav} />
+
+  <p class="acard" data-audit-status hidden style="font-size:14px">Running audit - this can take a few minutes.</p>
+
+  <div class="grid-main">
+    <Panel title="Issues" sub="Every lost point links to the page and issue causing it" empty="No audits run yet - run your first audit." emptyIcon="shield" flush>
+      <div class="tbl-scroll">
+        <table class="atbl">
+          <thead><tr><th>Page</th><th>Issue</th><th>Points lost</th><th>Severity</th></tr></thead>
+          <tbody>
+            {auditIssues.map((i) => (
+              <tr><td><code style="font-size:12px">{i.page}</code></td><td>{i.issue}</td><td class="num">−{i.points}</td><td><Bits pill={i.severity} /></td></tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
+    <Panel title="Score" empty="Run an audit to see your score.">
+      <p class="metric-v" style="font-size:48px;line-height:1">{score}<span class="acard-sub" style="font-size:16px"> / 100</span></p>
+      <p class="acard-sub" style="margin-top:8px">Rule-based and explainable: {lost} points lost across {auditIssues.length} issues. <Bits tip="The score is computed from a defined checklist (schema, content depth, FAQ markup and more) - no black box." /></p>
+    </Panel>
+  </div>
+</AppShell>
+
+<script>
+  const btn = document.querySelector<HTMLButtonElement>('[data-run-audit]')!;
+  const status = document.querySelector<HTMLElement>('[data-audit-status]')!;
+  btn.addEventListener('click', () => {
+    btn.disabled = true;
+    status.hidden = false;
+    setTimeout(() => {
+      status.hidden = true;
+      btn.disabled = false;
+      (window as any).tjToast?.(`Audit complete - ${btn.dataset.issues} issues found.`);
+    }, 2200);
+  });
+</script>

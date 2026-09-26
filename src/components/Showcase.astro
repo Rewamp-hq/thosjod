@@ -1,0 +1,146 @@
+---
+import { showcase } from '../data/home';
+import Icon from './Icon.astro';
+---
+
+<section class="sc" aria-roledescription="carousel" aria-label="Capability highlights" data-sc>
+  <div class="sc-track" data-sc-track>
+    {showcase.map((s, i) => (
+      <article class="sc-slide" aria-roledescription="slide" aria-label={`${i + 1} of ${showcase.length}`}>
+        <img src={s.image} alt="" loading="lazy" />
+        <div class="sc-shade" aria-hidden="true"></div>
+        <div class="sc-content">
+          <div class="sc-top">
+            <p class="sc-tag"><span class={`badge badge-${s.tone}`}>{s.tag.split(' ').map((w) => w[0]).filter((c) => /[A-Z]/.test(c)).join('').slice(0, 2)}</span>{s.tag}</p>
+            <h2 class="h2 sc-quote">{s.quote}</h2>
+            <a href={s.cta.href} class="btn btn-white">{s.cta.label}</a>
+          </div>
+          <div class="sc-bottom">
+            <div>
+              <p class="sc-name">{s.name}</p>
+              <p class="sc-role">{s.role}</p>
+            </div>
+            <p class="sc-count"><span>{s.count}</span> features</p>
+          </div>
+        </div>
+      </article>
+    ))}
+  </div>
+
+  <button class="sc-arrow prev" data-sc-prev aria-label="Previous slide"><Icon name="arrow-left" size={18} /></button>
+  <button class="sc-arrow next" data-sc-next aria-label="Next slide"><Icon name="arrow-right" size={18} /></button>
+
+  <div class="sc-dots" role="tablist" aria-label="Choose slide">
+    {showcase.map((_, i) => (
+      <button role="tab" class={i === 0 ? 'is-active' : ''} aria-label={`Go to slide ${i + 1}`} data-sc-dot={i}></button>
+    ))}
+  </div>
+</section>
+
+<style>
+  .sc { position: relative; background: #fff; padding: 120px 0 24px; }
+  .sc-track {
+    --slide-w: min(1280px, calc(100vw - 80px));
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    padding-inline: calc((100vw - var(--slide-w)) / 2);
+  }
+  .sc-track::-webkit-scrollbar { display: none; }
+  .sc-slide {
+    position: relative;
+    flex: 0 0 var(--slide-w);
+    height: 650px;
+    border-radius: 24px;
+    overflow: hidden;
+    scroll-snap-align: center;
+    color: #fff;
+    background: var(--ink);
+  }
+  .sc-slide > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .sc-shade { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.56); }
+  .sc-content { position: relative; height: 100%; padding: 64px; display: flex; flex-direction: column; justify-content: space-between; }
+  .sc-top { display: flex; flex-direction: column; align-items: flex-start; gap: 24px; max-width: 780px; }
+  .sc-tag { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; }
+  .sc-quote { color: #fff; }
+  .sc-bottom { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
+  .sc-name { font-size: 18px; font-weight: 500; line-height: 24px; }
+  .sc-role { font-size: 16px; line-height: 24px; color: rgba(255, 255, 255, 0.8); }
+  .sc-count { font-size: 16px; color: rgba(255, 255, 255, 0.8); display: flex; align-items: baseline; gap: 8px; }
+  .sc-count span { font-family: var(--font-head); font-size: 56px; line-height: 1; color: #fff; }
+
+  .sc-arrow {
+    position: absolute; top: calc(120px + 325px); translate: 0 -50%;
+    width: 40px; height: 40px; border-radius: 999px;
+    display: grid; place-items: center;
+    background: #fff; color: var(--ink);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16);
+    transition: transform 0.2s var(--ease), opacity 0.2s;
+    z-index: 2;
+  }
+  .sc-arrow:hover { transform: scale(1.06); }
+  .sc-arrow.prev { left: calc((100vw - min(1280px, calc(100vw - 80px))) / 2 - 20px); }
+  .sc-arrow.next { right: calc((100vw - min(1280px, calc(100vw - 80px))) / 2 - 20px); }
+
+  .sc-dots { position: absolute; left: 50%; translate: -50% 0; bottom: 48px; display: flex; gap: 6px; z-index: 2; }
+  .sc-dots button { width: 6px; height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.45); transition: width 0.35s var(--ease), background-color 0.35s; }
+  .sc-dots button.is-active { width: 20px; background: #fff; }
+
+  @media (max-width: 809px) {
+    .sc { padding-top: 80px; }
+    .sc-track { --slide-w: calc(100vw - 32px); gap: 8px; }
+    .sc-slide { height: 560px; border-radius: 16px; }
+    .sc-content { padding: 28px 24px 56px; }
+    .sc-top { gap: 20px; }
+    .sc-count span { font-size: 40px; }
+    .sc-bottom { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .sc-arrow { display: none; }
+    .sc-dots { bottom: 44px; }
+  }
+</style>
+
+<script>
+  const sc = document.querySelector<HTMLElement>('[data-sc]')!;
+  const track = sc.querySelector<HTMLElement>('[data-sc-track]')!;
+  const slides = [...track.children] as HTMLElement[];
+  const dots = [...sc.querySelectorAll<HTMLButtonElement>('[data-sc-dot]')];
+  let index = 0;
+  let timer: number | undefined;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const goTo = (i: number) => {
+    index = (i + slides.length) % slides.length;
+    const s = slides[index];
+    track.scrollTo({ left: s.offsetLeft - (track.clientWidth - s.clientWidth) / 2, behavior: 'smooth' });
+  };
+  const autoplay = () => {
+    window.clearInterval(timer);
+    if (!reduced) timer = window.setInterval(() => goTo(index + 1), 6500);
+  };
+
+  // Keep dots in sync with manual swipes
+  let raf = 0;
+  track.addEventListener('scroll', () => {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => {
+      const center = track.scrollLeft + track.clientWidth / 2;
+      let best = 0, dist = Infinity;
+      slides.forEach((s, i) => {
+        const d = Math.abs(s.offsetLeft + s.clientWidth / 2 - center);
+        if (d < dist) { dist = d; best = i; }
+      });
+      index = best;
+      dots.forEach((d, i) => d.classList.toggle('is-active', i === best));
+    });
+  }, { passive: true });
+
+  sc.querySelector('[data-sc-prev]')!.addEventListener('click', () => { goTo(index - 1); autoplay(); });
+  sc.querySelector('[data-sc-next]')!.addEventListener('click', () => { goTo(index + 1); autoplay(); });
+  dots.forEach((d, i) => d.addEventListener('click', () => { goTo(i); autoplay(); }));
+  sc.addEventListener('mouseenter', () => window.clearInterval(timer));
+  sc.addEventListener('mouseleave', autoplay);
+  autoplay();
+</script>

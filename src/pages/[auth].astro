@@ -1,0 +1,225 @@
+---
+// Source: thosjod_content/content/auth/authentication-copy.md
+// UI only - there is no application backend yet, so forms show an honest notice on submit.
+import Base from '../layouts/Base.astro';
+import Logo from '../components/Logo.astro';
+import Icon from '../components/Icon.astro';
+import { img } from '../data/pageMedia';
+
+type Link = { pre?: string; label: string; href: string };
+type Screen = {
+  heading: string; text?: string;
+  /** Submit label; omitted when the screen uses `action` (a link button) instead of a form */
+  submit?: string;
+  fields: { name: string; label: string; type: string; autocomplete?: string; placeholder?: string }[];
+  links: Link[]; security?: string; extra?: Link;
+  /** Link-button used instead of a form (carries the query string along) */
+  action?: Link;
+  /** Secondary line under the form, e.g. waiting state */
+  waiting?: string;
+  /** Personalised versions filled from ?inviter=&company=&email= when present */
+  dyn?: { heading?: string; text?: string };
+};
+
+const screens: Record<string, Screen> = {
+  login: {
+    heading: 'Log in to Thosjod',
+    text: 'Access your dashboard, conversations, and analytics.',
+    submit: 'Log In',
+    fields: [
+      { name: 'email', label: 'Work Email', type: 'email', autocomplete: 'email' },
+      { name: 'password', label: 'Password', type: 'password', autocomplete: 'current-password' },
+    ],
+    extra: { label: 'Forgot password?', href: '/forgot-password' },
+    links: [{ pre: 'New here?', label: 'Sign up', href: '/signup' }, { pre: 'On Scale or Enterprise?', label: 'Log in with SSO', href: '/sso' }, { pre: 'Just looking?', label: 'Explore the product preview', href: '/app/dashboard' }],
+    security: 'Your connection is encrypted. Never share your password with anyone, including Thosjod support.',
+  },
+  signup: {
+    heading: 'Create your Thosjod account',
+    text: 'Set up your first AI agent in minutes.',
+    submit: 'Create Account',
+    fields: [
+      { name: 'email', label: 'Work Email', type: 'email', autocomplete: 'email' },
+      { name: 'company', label: 'Company Name', type: 'text', autocomplete: 'organization' },
+      { name: 'password', label: 'Password', type: 'password', autocomplete: 'new-password', placeholder: 'At least 8 characters' },
+      { name: 'confirm', label: 'Confirm Password', type: 'password', autocomplete: 'new-password' },
+    ],
+    links: [{ pre: 'Already have an account?', label: 'Log in', href: '/login' }],
+  },
+  'forgot-password': {
+    heading: 'Reset your password',
+    text: 'Enter your work email and we’ll send a reset link.',
+    submit: 'Send Reset Link',
+    fields: [{ name: 'email', label: 'Work Email', type: 'email', autocomplete: 'email' }],
+    links: [{ pre: 'Remembered it?', label: 'Log in', href: '/login' }],
+  },
+  sso: {
+    heading: 'Log in with SSO',
+    text: 'Available on Scale and Enterprise plans.',
+    submit: 'Continue',
+    fields: [{ name: 'domain', label: 'Company Domain', type: 'text', placeholder: 'yourcompany.com' }],
+    links: [{ pre: 'No SSO?', label: 'Log in with email instead', href: '/login' }],
+    security: 'You’ll be redirected to your company’s identity provider to complete login.',
+  },
+  'reset-password': {
+    heading: 'Set a new password',
+    submit: 'Update Password',
+    fields: [
+      { name: 'password', label: 'New Password', type: 'password', autocomplete: 'new-password', placeholder: 'At least 8 characters' },
+      { name: 'confirm', label: 'Confirm New Password', type: 'password', autocomplete: 'new-password' },
+    ],
+    links: [{ pre: 'Link expired?', label: 'Request a new one', href: '/forgot-password' }],
+  },
+  'verify-email': {
+    heading: 'Verify your email',
+    text: 'We sent a verification link to your email address. Click it to activate your account.',
+    dyn: { text: 'We sent a verification link to {email}. Click it to activate your account.' },
+    submit: 'Resend Verification Email',
+    fields: [],
+    waiting: 'Didn’t get it? Check spam, or resend.',
+    links: [{ pre: 'Wrong address?', label: 'Sign up again', href: '/signup' }],
+  },
+  invite: {
+    heading: 'You’ve been invited to Thosjod',
+    text: 'You’ve been invited to join a Thosjod workspace.',
+    dyn: { text: '{inviter} invited you to join {company}’s Thosjod workspace.' },
+    fields: [],
+    action: { label: 'Accept Invite', href: '/accept-invite' },
+    links: [{ pre: 'Already have an account?', label: 'Log in', href: '/login' }],
+  },
+  'accept-invite': {
+    heading: 'Join your team on Thosjod',
+    dyn: { heading: 'Join {company} on Thosjod' },
+    submit: 'Join Workspace',
+    fields: [
+      { name: 'name', label: 'Full Name', type: 'text', autocomplete: 'name' },
+      { name: 'password', label: 'Password', type: 'password', autocomplete: 'new-password', placeholder: 'At least 8 characters' },
+      { name: 'confirm', label: 'Confirm Password', type: 'password', autocomplete: 'new-password' },
+    ],
+    links: [{ pre: 'Already have an account?', label: 'Log in', href: '/login' }],
+  },
+};
+
+export function getStaticPaths() {
+  return ['login', 'signup', 'forgot-password', 'sso', 'reset-password', 'verify-email', 'invite', 'accept-invite'].map((auth) => ({ params: { auth } }));
+}
+
+const { auth } = Astro.params as { auth: string };
+const s = screens[auth];
+---
+
+<Base title={`${s.heading} - Thosjod`} description={s.text ?? s.heading} noindex>
+  <main class="auth">
+    <div class="auth-panel">
+      <a href="/" class="auth-logo" aria-label="Thosjod home"><Logo variant="dark" height={28} /></a>
+
+      <div class="auth-box">
+        <h1 class="auth-h" data-dyn={s.dyn?.heading}>{s.heading}</h1>
+        {s.text && <p class="auth-text" data-dyn={s.dyn?.text}>{s.text}</p>}
+
+        {s.action ? (
+          <div class="auth-form">
+            <a class="btn btn-dark auth-submit" href={s.action.href} data-keep-query>{s.action.label}</a>
+          </div>
+        ) : (
+          <form class="auth-form" data-auth-form>
+            {s.fields.map((f) => (
+              <label class="auth-field">
+                <span>{f.label}</span>
+                <input name={f.name} type={f.type} required autocomplete={f.autocomplete} placeholder={f.placeholder} minlength={f.type === 'password' ? 8 : undefined} />
+              </label>
+            ))}
+            {s.extra && <a class="auth-extra" href={s.extra.href}>{s.extra.label}</a>}
+            <button type="submit" class="btn btn-dark auth-submit">{s.submit}</button>
+            <p class="auth-status" role="status" aria-live="polite" hidden></p>
+          </form>
+        )}
+        {s.waiting && <p class="auth-waiting">{s.waiting}</p>}
+
+        <div class="auth-links">
+          {s.links.map((l) => <p>{l.pre} <a href={l.href}>{l.label}</a></p>)}
+        </div>
+
+        {s.security && <p class="auth-sec"><Icon name="shield" size={14} />{s.security}</p>}
+      </div>
+
+      <p class="auth-help">Trouble accessing your account? <a href="/help">Visit the Help Center</a></p>
+    </div>
+
+    <aside class="auth-art" aria-hidden="true">
+      <img src={img('1542744173-8e7e53415bb0', 1400)} alt="" />
+      <div class="auth-shade"></div>
+      <div class="auth-quote">
+        <p class="auth-q">Turn every website visitor into a qualified conversation.</p>
+        <p class="auth-q-sub">The AI Website Discovery &amp; Lead Engine</p>
+      </div>
+    </aside>
+  </main>
+</Base>
+
+<style>
+  .auth { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); background: #fff; }
+  .auth-panel { display: flex; flex-direction: column; justify-content: space-between; gap: 40px; padding: 32px 48px; }
+  .auth-box { width: 100%; max-width: 400px; margin: 0 auto; }
+  .auth-h { font-family: var(--font-head); font-weight: 400; font-size: 36px; line-height: 44px; letter-spacing: .01em; }
+  .auth-text { margin-top: 10px; font-size: 15px; color: var(--muted); }
+  .auth-form { display: grid; gap: 14px; margin-top: 32px; }
+  .auth-field { display: grid; gap: 6px; font-size: 13px; font-weight: 500; }
+  .auth-field input { font: inherit; font-size: 15px; font-weight: 400; padding: 12px 14px; border: 0; border-radius: 10px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); }
+  .auth-field input:focus { outline: 0; background: #fff; box-shadow: inset 0 0 0 1.5px var(--ink); }
+  .auth-extra { justify-self: end; font-size: 13px; color: var(--muted); }
+  .auth-extra:hover { color: var(--ink); }
+  .auth-submit { width: 100%; height: 44px; margin-top: 6px; }
+  .auth-status { font-size: 14px; padding: 12px 14px; border-radius: 10px; background: color-mix(in srgb, var(--orange) 10%, #fff); }
+  .auth-waiting { margin-top: 14px; font-size: 14px; color: var(--muted); text-align: center; }
+  .auth-links { margin-top: 24px; display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
+  .auth-links a, .auth-help a { color: var(--ink); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
+  .auth-sec { display: flex; gap: 8px; align-items: flex-start; margin-top: 28px; font-size: 12px; line-height: 18px; color: var(--muted); }
+  .auth-sec :global(svg) { flex-shrink: 0; color: var(--teal); margin-top: 2px; }
+  .auth-help { font-size: 13px; color: var(--muted); text-align: center; }
+
+  .auth-art { position: relative; margin: 12px; border-radius: 24px; overflow: hidden; background: var(--ink); color: #fff; }
+  .auth-art img, .auth-shade { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .auth-shade { background: linear-gradient(180deg, rgba(0,0,0,.2), rgba(0,0,0,.72)); }
+  .auth-quote { position: absolute; left: 48px; right: 48px; bottom: 48px; }
+  .auth-q { font-family: var(--font-head); font-size: 36px; line-height: 44px; letter-spacing: .01em; }
+  .auth-q-sub { margin-top: 12px; font-size: 14px; color: rgba(255,255,255,.75); }
+
+  @media (max-width: 899px) {
+    .auth { grid-template-columns: 1fr; }
+    .auth-art { display: none; }
+    .auth-panel { padding: 24px 16px; }
+  }
+</style>
+
+<script>
+  // Personalise invite / verification copy from the link's query string.
+  // Values are written with textContent and length-capped, so nothing is interpreted as HTML.
+  const params = new URLSearchParams(location.search);
+  const val = (k: string) => (params.get(k) ?? '').trim().slice(0, 80);
+  document.querySelectorAll<HTMLElement>('[data-dyn]').forEach((el) => {
+    const tpl = el.dataset.dyn!;
+    const keys = [...tpl.matchAll(/\{(\w+)\}/g)].map((m) => m[1]);
+    if (keys.length && keys.every((k) => val(k))) {
+      el.textContent = tpl.replace(/\{(\w+)\}/g, (_, k) => val(k));
+    }
+  });
+  // Carry ?inviter=&company= through from /invite to /accept-invite
+  document.querySelectorAll<HTMLAnchorElement>('[data-keep-query]').forEach((a) => {
+    if (location.search) a.href = a.pathname + location.search;
+  });
+
+  document.querySelectorAll<HTMLFormElement>('[data-auth-form]').forEach((form) => {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const pw = form.querySelectorAll<HTMLInputElement>('input[type="password"]');
+      const status = form.querySelector<HTMLElement>('.auth-status')!;
+      status.hidden = false;
+      if (pw.length === 2 && pw[0].value !== pw[1].value) {
+        status.textContent = "Passwords don't match.";
+        return;
+      }
+      status.textContent = 'Accounts open at launch - this preview isn’t connected to the Thosjod app yet.';
+    });
+  });
+</script>

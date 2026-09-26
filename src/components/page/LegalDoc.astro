@@ -1,0 +1,77 @@
+---
+// Long-form document layout for legal pages: sticky table of contents + one prose column.
+import type { Section } from '../../lib/content';
+import { md } from '../../lib/inline';
+
+interface Props { sections: Section[] }
+const { sections } = Astro.props;
+const docs = sections.filter((s) => s.id !== 'faq' && s.blocks.length > 0);
+---
+
+<div class="container legal">
+  <nav class="legal-toc" aria-label="Contents">
+    <p class="legal-toc-title">Contents</p>
+    <ol>
+      {docs.map((s) => <li><a href={`#${s.id}`}>{s.title || s.eyebrow}</a></li>)}
+    </ol>
+  </nav>
+
+  <article class="legal-body">
+    {docs.map((s, i) => (
+      <section id={s.id}>
+        <h2><span>{i + 1}.</span> {s.title || s.eyebrow}</h2>
+        {s.blocks.map((b) => {
+          if (b.type === 'p') return <p set:html={md(b.text)} />;
+          if (b.type === 'quote') return <p class="legal-note" set:html={md(b.text)} />;
+          if (b.type === 'kv') return b.items.map((it) => <p set:html={md(`${it.k}: ${it.v}`)} />);
+          if (b.type === 'ul') return <ul>{b.items.map((it) => <li set:html={md(it)} />)}</ul>;
+          if (b.type === 'ol') return <ol>{b.items.map((it) => <li set:html={md(it)} />)}</ol>;
+          if (b.type === 'table')
+            return (
+              <div class="legal-table">
+                <table>
+                  <thead><tr>{b.head.map((h) => <th scope="col" set:html={md(h)} />)}</tr></thead>
+                  <tbody>{b.rows.map((r) => <tr>{r.map((c) => <td set:html={md(c)} />)}</tr>)}</tbody>
+                </table>
+              </div>
+            );
+          return null;
+        })}
+      </section>
+    ))}
+  </article>
+</div>
+
+<style>
+  .legal { display: grid; grid-template-columns: 240px minmax(0, 760px); gap: 64px; padding-top: 40px; padding-bottom: 96px; align-items: start; }
+  .legal-toc { position: sticky; top: 112px; }
+  .legal-toc-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted-3); margin-bottom: 12px; }
+  .legal-toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; counter-reset: toc; }
+  .legal-toc li { counter-increment: toc; }
+  .legal-toc a { display: flex; gap: 8px; padding: 6px 8px; border-radius: 8px; font-size: 13px; line-height: 18px; color: var(--muted); }
+  .legal-toc a::before { content: counter(toc) '.'; color: var(--muted-3); min-width: 16px; }
+  .legal-toc a:hover { background: #fff; color: var(--ink); }
+
+  .legal-body { display: grid; gap: 40px; }
+  .legal-body section { display: grid; gap: 14px; scroll-margin-top: 110px; }
+  .legal-body h2 { font-family: var(--font-head); font-weight: 400; font-size: 26px; line-height: 32px; color: var(--ink-2); }
+  .legal-body h2 span { color: var(--muted-3); }
+  .legal-body p, .legal-body li { font-size: 16px; line-height: 26px; color: var(--ink-3); }
+  .legal-body ul, .legal-body ol { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
+  .legal-body ul { list-style: disc; }
+  .legal-body ol { list-style: decimal; }
+  .legal-body li::marker { color: var(--muted-3); }
+  .legal-body :global(a) { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+  .legal-note { padding: 14px 16px; border-radius: 12px; background: #fff; font-size: 14px !important; color: var(--muted) !important; }
+  .legal-table { overflow-x: auto; border-radius: 12px; background: #fff; box-shadow: 0 0 0 1px rgba(26,24,20,.06); }
+  .legal-table table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .legal-table th, .legal-table td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  .legal-table th { font-size: 12px; font-weight: 500; color: var(--muted-3); background: var(--bg); }
+  .legal-table tr:last-child td { border-bottom: 0; }
+
+  @media (max-width: 899px) {
+    .legal { grid-template-columns: 1fr; gap: 24px; }
+    .legal-toc { position: static; padding: 16px; border-radius: 12px; background: #fff; }
+    .legal-body h2 { font-size: 22px; line-height: 28px; }
+  }
+</style>

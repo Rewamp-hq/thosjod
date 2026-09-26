@@ -1,0 +1,40 @@
+---
+import AppShell from '../../layouts/AppShell.astro';
+import AppHeader from '../../components/app/AppHeader.astro';
+import Panel from '../../components/app/Panel.astro';
+import Bits from '../../components/app/Bits.astro';
+import { visitors } from '../../data/app/sample';
+
+const sources = [...new Set(visitors.map((v) => v.source))];
+const geos = [...new Set(visitors.map((v) => v.geo.split(', ')[1]))];
+---
+
+<AppShell title="Visitors" description="List of identified and anonymous visitor sessions.">
+  <AppHeader title="Visitors" desc="List of identified and anonymous visitor sessions." />
+
+  <div class="filters">
+    <label>Status <select data-filter-for="t-visitors" data-filter-col="kind"><option value="">All</option><option value="Identified">Identified</option><option value="Anonymous">Anonymous</option></select></label>
+    <label>Date range <select data-filter-for="t-visitors" data-filter-col="range"><option value="">Last 7 days</option><option value="today">Today</option></select></label>
+    <label>Source <select data-filter-for="t-visitors" data-filter-col="source"><option value="">All</option>{sources.map((s) => <option>{s}</option>)}</select></label>
+    <label>Geography <select data-filter-for="t-visitors" data-filter-col="geo"><option value="">All</option>{geos.map((g) => <option>{g}</option>)}</select></label>
+  </div>
+
+  <Panel empty="No visitors yet." emptyIcon="user" flush>
+    <div class="tbl-scroll">
+      <table class="atbl" id="t-visitors" data-filterable>
+        <thead><tr><th>Company</th><th>Name</th><th>First Seen</th><th>Pages Viewed</th><th>Status</th></tr></thead>
+        <tbody>
+          {visitors.map((v) => (
+            <tr data-kind={v.status === 'Anonymous' ? 'Anonymous' : 'Identified'} data-source={v.source} data-geo={v.geo.split(', ')[1]} data-range={v.firstSeen === '2026-09-26' ? 'today' : ''}>
+              <td><a class="row-link" href={`/app/visitor/${v.id}`}>{v.company ?? 'Anonymous visitor'}</a></td>
+              <td class:list={{ muted: !v.name }}>{v.name ?? '-'}</td>
+              <td class="num">{v.firstSeen}</td>
+              <td class="num">{v.pages}</td>
+              <td><Bits pill={v.status} /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </Panel>
+</AppShell>

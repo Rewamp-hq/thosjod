@@ -1,0 +1,56 @@
+---
+import Base from '../layouts/Base.astro';
+import Header from '../components/Header.astro';
+import Hero from '../components/Hero.astro';
+import WorksWith from '../components/WorksWith.astro';
+import Problem from '../components/Problem.astro';
+import HowItWorks from '../components/HowItWorks.astro';
+import EngineCards from '../components/EngineCards.astro';
+import Showcase from '../components/Showcase.astro';
+import Industries from '../components/Industries.astro';
+import Trust from '../components/Trust.astro';
+import Outcomes from '../components/Outcomes.astro';
+import Faq from '../components/Faq.astro';
+import FinalCta from '../components/FinalCta.astro';
+import Footer from '../components/Footer.astro';
+import { seo, faq, finalCta, heroSlides } from '../data/home';
+import { software, faqPage } from '../lib/schema';
+import { handRoutes } from '../data/handRoutes';
+
+// Structured data: full SoftwareApplication (with pricing offers) + FAQPage, linked into Base's @graph
+const schemaNodes = [software(), faqPage('/', faq)];
+const route = handRoutes['/'];
+---
+
+<Base title={seo.title} description={seo.description} keywords={route.keywords} image={heroSlides[0].image} aboutProduct schema={schemaNodes}>
+  <Header />
+  <main>
+    <Hero />
+
+    <!-- Content sheet slides up over the sticky hero -->
+    <div class="sheet">
+      <WorksWith />
+      <Problem />
+      <HowItWorks />
+      <EngineCards />
+      <Showcase />
+      <Industries />
+      <Trust />
+      <Outcomes />
+      <Faq items={faq} />
+      <FinalCta {...finalCta} />
+    </div>
+  </main>
+  <Footer />
+</Base>
+
+<style>
+  main { position: relative; }
+  .sheet {
+    position: relative;
+    z-index: 1;
+    background: var(--bg);
+    border-radius: 16px 16px 0 0;
+    padding-top: 16px;
+  }
+</style>

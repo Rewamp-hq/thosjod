@@ -1,0 +1,58 @@
+---
+// Post-submission confirmation (02-sitemap: "Thank You - /thank-you", P0).
+// noindex, nofollow per 30-seo-metadata-database.md. Forms redirect here with ?form=<name>.
+import Page from '../layouts/Page.astro';
+import ContentSection from '../components/page/ContentSection.astro';
+import type { Section } from '../lib/content';
+
+const MESSAGES: Record<string, { title: string; sub: string }> = {
+  default: { title: 'Thanks - we’ve got it.', sub: 'Your submission is on its way to the Thosjod team.' },
+  demo: { title: 'Thanks - your demo request is in.', sub: 'We’ll reach out to schedule your 20-minute walkthrough.' },
+  contact: { title: 'Thanks for reaching out.', sub: 'Your message is with our team, and we’ll get back to you.' },
+  audit: { title: 'Thanks - your audit request is in.', sub: 'Your results will be sent to the email address you provided.' },
+  newsletter: { title: 'You’re subscribed.', sub: 'Product updates will arrive in your inbox.' },
+};
+
+const next: Section = {
+  id: 'next', eyebrow: 'While you wait', title: 'Keep exploring.',
+  blocks: [{
+    type: 'table', head: ['Page', 'Why', 'Link'],
+    rows: [
+      ['Platform', 'See how the nine layers fit together.', '`/platform`'],
+      ['AI Visibility Audit', 'Check whether AI engines mention your brand.', '`/tools/ai-visibility-audit`'],
+      ['Pricing', 'Plans, credits, and what’s included.', '`/pricing`'],
+      ['Compare', 'Factual comparisons with alternatives.', '`/compare`'],
+    ],
+  }],
+};
+---
+
+<Page
+  title="Thank you - Thosjod"
+  description="Thanks for getting in touch with Thosjod."
+  noindex
+  nofollow
+  hero={{
+    eyebrow: 'Confirmed',
+    title: MESSAGES.default.title,
+    sub: MESSAGES.default.sub,
+    primary: { label: 'Back to home', href: '/' },
+    secondary: { label: 'Explore the platform', href: '/platform' },
+  }}
+  cta={null}
+>
+  <ContentSection section={next} index={1} />
+</Page>
+
+<script is:inline define:vars={{ MESSAGES }}>
+  // Swap in the message for the form that was submitted (textContent only - no HTML injection).
+  const key = new URLSearchParams(location.search).get('form') || '';
+  const kind = key === 'demo' || key === 'contact' || key === 'newsletter' ? key : key.startsWith('tools-') ? 'audit' : 'default';
+  const m = MESSAGES[kind];
+  const h1 = document.querySelector('.ph-title');
+  const sub = document.querySelector('.ph-sub');
+  if (h1) h1.textContent = m.title;
+  if (sub) sub.textContent = m.sub;
+  // Analytics conversion (only sent if the visitor accepted analytics - see Analytics.astro)
+  if (key && window.tjTrack) window.tjTrack('generate_lead', { form: key });
+</script>

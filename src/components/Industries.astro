@@ -1,0 +1,91 @@
+---
+import { industriesSection as s } from '../data/home';
+import Eyebrow from './Eyebrow.astro';
+import Icon from './Icon.astro';
+---
+
+<section class="ind" aria-labelledby="ind-title" data-ind>
+  <div class="container ind-head">
+    <div class="section-title reveal">
+      <Eyebrow>{s.eyebrow}</Eyebrow>
+      <h2 id="ind-title" class="h2">{s.title}</h2>
+      <p class="body-sm">{s.sub}</p>
+    </div>
+    <div class="ind-nav">
+      <button class="icon-btn" data-ind-prev aria-label="Scroll industries left" disabled><Icon name="arrow-left" size={18} /></button>
+      <button class="icon-btn" data-ind-next aria-label="Scroll industries right"><Icon name="arrow-right" size={18} /></button>
+    </div>
+  </div>
+
+  <ul class="ind-track" data-ind-track>
+    {s.items.map((it) => (
+      <li class="icard">
+        <a href={it.href} class="icard-link">
+          <img src={it.image} alt="" loading="lazy" />
+          <div class="icard-shade" aria-hidden="true"></div>
+          <div class="icard-content">
+            <h3 class="h3">{it.title}</h3>
+            <p class="icard-body">{it.body}</p>
+            <span class="btn btn-glass btn-sm icard-btn">Explore <Icon name="arrow-right" size={14} /></span>
+          </div>
+        </a>
+      </li>
+    ))}
+  </ul>
+
+  <div class="container">
+    <a href="/industries" class="ind-all">View all 14 industries <Icon name="arrow-right" size={14} /></a>
+  </div>
+</section>
+
+<style>
+  .ind { background: #fff; padding: 120px 0 120px; }
+  .ind-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
+  .ind-nav { display: flex; gap: 8px; }
+  .ind-track {
+    display: flex;
+    gap: 8px;
+    margin-top: 56px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    padding-inline: max(var(--gutter), calc((100% - var(--container)) / 2));
+    scroll-padding-inline: max(var(--gutter), calc((100% - var(--container)) / 2));
+  }
+  .ind-track::-webkit-scrollbar { display: none; }
+  .icard { flex: 0 0 min(465px, 82vw); height: 488px; scroll-snap-align: start; }
+  .icard-link { position: relative; display: block; height: 100%; border-radius: 12px; overflow: hidden; color: #fff; background: var(--ink); }
+  .icard-link img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.9s var(--ease); }
+  .icard-link:hover img { transform: scale(1.05); }
+  .icard-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0, 0, 0, 0) 35%, rgba(0, 0, 0, 0.78) 100%); }
+  .icard-content { position: absolute; left: 0; right: 0; bottom: 0; padding: 32px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+  .icard-body { font-size: 14px; line-height: 20px; color: rgba(255, 255, 255, 0.86); max-width: 360px; }
+  .icard-btn { margin-top: 8px; }
+  .ind-all { display: inline-flex; align-items: center; gap: 6px; margin-top: 32px; font-size: 14px; font-weight: 500; color: var(--ink); }
+  .ind-all:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+  @media (max-width: 809px) {
+    .ind { padding: 80px 0; }
+    .ind-nav { display: none; }
+    .ind-track { margin-top: 32px; }
+    .icard { height: 420px; }
+    .icard-content { padding: 24px; }
+  }
+</style>
+
+<script>
+  const root = document.querySelector<HTMLElement>('[data-ind]')!;
+  const track = root.querySelector<HTMLElement>('[data-ind-track]')!;
+  const prev = root.querySelector<HTMLButtonElement>('[data-ind-prev]')!;
+  const next = root.querySelector<HTMLButtonElement>('[data-ind-next]')!;
+  const step = () => (track.querySelector<HTMLElement>('.icard')?.offsetWidth ?? 400) + 8;
+  const sync = () => {
+    prev.disabled = track.scrollLeft < 4;
+    next.disabled = track.scrollLeft + track.clientWidth >= track.scrollWidth - 4;
+  };
+  prev.addEventListener('click', () => track.scrollBy({ left: -step(), behavior: 'smooth' }));
+  next.addEventListener('click', () => track.scrollBy({ left: step(), behavior: 'smooth' }));
+  track.addEventListener('scroll', sync, { passive: true });
+  sync();
+</script>

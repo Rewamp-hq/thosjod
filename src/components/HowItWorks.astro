@@ -1,0 +1,248 @@
+---
+import { howItWorks } from '../data/home';
+import Eyebrow from './Eyebrow.astro';
+import Icon from './Icon.astro';
+---
+
+<section id="how-it-works" class="hiw" aria-labelledby="hiw-title">
+  <div class="container">
+    <div class="section-title reveal">
+      <Eyebrow>{howItWorks.eyebrow}</Eyebrow>
+      <h2 id="hiw-title" class="h2">{howItWorks.title}</h2>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="hiw-card reveal" data-hiw>
+      <!-- Left: signals flowing in -->
+      <ul class="hiw-signals" aria-label="Signals Thosjod reads">
+        {howItWorks.signals.map((s, i) => (
+          <li class="sig" style={`--c:${s.color};--i:${i}`}>
+            <span class="sig-icon"><Icon name={s.icon} size={14} /></span>
+            <span class="sig-label">{s.label}</span>
+            <span class="sig-line" aria-hidden="true"><span></span></span>
+          </li>
+        ))}
+      </ul>
+
+      <!-- Center: live conversation -->
+      <div class="hiw-chat" aria-hidden="true">
+        <div class="chat-head">
+          <img src="/favicon.png" alt="" width="20" height="20" />
+          <span class="chat-name">Thosjod Agent</span>
+          <span class="chat-live"><i></i>Live</span>
+        </div>
+        <div class="chat-body">
+          <div class="msg msg-in" data-step="0">Does this work with Salesforce? We run three brands.</div>
+          <div class="typing" data-step="1"><i></i><i></i><i></i></div>
+          <div class="msg msg-out" data-step="2">
+            Yes - Thosjod syncs natively with Salesforce. For multiple brands you can run isolated agents, each with its own knowledge base. Want a 20-minute walkthrough?
+            <span class="msg-src"><Icon name="check" size={12} /> Grounded in: Integrations · Enterprise</span>
+          </div>
+          <div class="msg msg-in" data-step="3">Sure - Tuesday morning works.</div>
+          <div class="chip-booked" data-step="4"><Icon name="cal" size={14} /> Meeting booked · Tue, 10:30</div>
+        </div>
+        <div class="chat-input">
+          <span>Ask anything…</span>
+          <span class="chat-send"><Icon name="send" size={14} /></span>
+        </div>
+      </div>
+
+      <!-- Right: outcomes -->
+      <div class="hiw-out" aria-hidden="true">
+        <span class="out-line"><span></span></span>
+        <div class="out-stack">
+          <div class="out-card" data-step="1">
+            <span class="out-k"><Icon name="user" size={14} /> Visitor identified</span>
+            <span class="out-v">Northwind Logistics</span>
+            <span class="out-meta">3rd visit · Pricing, Integrations</span>
+          </div>
+          <div class="out-card" data-step="2">
+            <span class="out-k"><Icon name="spark" size={14} /> ICP fit</span>
+            <span class="out-v">High <em class="pill pill-teal">Qualified</em></span>
+            <span class="out-meta">Multi-brand · Enterprise segment</span>
+          </div>
+          <div class="out-card" data-step="3">
+            <span class="out-k"><Icon name="route" size={14} /> Routed</span>
+            <span class="out-v">Enterprise AE</span>
+            <span class="out-meta">Rule: multi-brand → enterprise team</span>
+          </div>
+          <div class="out-card" data-step="4">
+            <span class="out-k"><Icon name="sync" size={14} /> CRM</span>
+            <span class="out-v">Synced to Salesforce <em class="pill pill-violet">Done</em></span>
+            <span class="out-meta">Transcript + context attached</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <ol class="hiw-steps">
+      {howItWorks.steps.map((s, i) => (
+        <li class="step reveal" data-delay={i} data-hiw-step={i}>
+          <span class="step-bar" aria-hidden="true"><span></span></span>
+          <span class="step-n">{s.n}</span>
+          <h3 class="card-title">{s.title}</h3>
+          <p class="body-sm">{s.body}</p>
+        </li>
+      ))}
+    </ol>
+  </div>
+</section>
+
+<style>
+  .hiw { padding-top: 120px; }
+  .hiw-card {
+    margin-top: 56px;
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(200px, 1fr) minmax(340px, 400px) minmax(240px, 1fr);
+    align-items: center;
+    gap: 0;
+    min-height: 588px;
+    padding: 48px;
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  /* signals */
+  .hiw-signals { display: flex; flex-direction: column; gap: 18px; }
+  .sig { position: relative; display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; }
+  .sig-icon {
+    width: 28px; height: 28px; flex-shrink: 0;
+    display: grid; place-items: center;
+    border-radius: 8px;
+    color: var(--c);
+    background: color-mix(in srgb, var(--c) 12%, #fff);
+  }
+  .sig-label { white-space: nowrap; }
+  .sig-line { position: relative; flex: 1; height: 1px; margin-left: 8px; background: linear-gradient(90deg, var(--line), rgba(226, 226, 226, 0.3)); overflow: hidden; min-width: 24px; }
+  .sig-line span {
+    position: absolute; top: -1px; left: -30%; width: 30%; height: 3px; border-radius: 2px;
+    background: linear-gradient(90deg, transparent, var(--c));
+    animation: flow 2.6s var(--ease) infinite;
+    animation-delay: calc(var(--i) * 0.35s);
+  }
+  @keyframes flow { to { left: 100%; } }
+
+  /* chat */
+  .hiw-chat {
+    position: relative;
+    z-index: 1;
+    display: flex; flex-direction: column;
+    height: 460px;
+    background: var(--bg);
+    border-radius: 16px;
+    box-shadow: 0 0 0 1px rgba(26, 24, 20, 0.06), 0 24px 48px -24px rgba(26, 24, 20, 0.2);
+    overflow: hidden;
+  }
+  .chat-head { display: flex; align-items: center; gap: 8px; padding: 14px 16px; background: #fff; border-bottom: 1px solid var(--line-soft); }
+  .chat-head img { width: 20px; height: 20px; object-fit: contain; }
+  .chat-name { font-size: 14px; font-weight: 500; }
+  .chat-live { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--teal); font-weight: 500; }
+  .chat-live i { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); animation: pulse 1.6s infinite; }
+  @keyframes pulse { 50% { opacity: 0.3; } }
+  .chat-body { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 16px; overflow: hidden; }
+  .msg { max-width: 86%; padding: 10px 12px; border-radius: 12px; font-size: 13px; line-height: 18px; }
+  .msg-in { align-self: flex-end; background: var(--ink); color: #fff; border-bottom-right-radius: 4px; }
+  .msg-out { align-self: flex-start; background: #fff; color: var(--ink); border-bottom-left-radius: 4px; box-shadow: 0 0 0 1px rgba(26, 24, 20, 0.06); }
+  .msg-src { display: flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 11px; color: var(--teal); font-weight: 500; }
+  .typing { align-self: flex-start; display: flex; gap: 4px; padding: 12px; background: #fff; border-radius: 12px; box-shadow: 0 0 0 1px rgba(26, 24, 20, 0.06); }
+  .typing i { width: 5px; height: 5px; border-radius: 50%; background: var(--muted-3); animation: dot 1s infinite; }
+  .typing i:nth-child(2) { animation-delay: 0.15s; }
+  .typing i:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes dot { 50% { transform: translateY(-3px); opacity: 0.4; } }
+  .chip-booked {
+    align-self: center; display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 500;
+    color: var(--teal); background: color-mix(in srgb, var(--teal) 10%, #fff);
+  }
+  .chat-input { display: flex; align-items: center; justify-content: space-between; margin: 0 12px 12px; padding: 10px 10px 10px 14px; background: #fff; border-radius: 999px; font-size: 13px; color: var(--muted-3); box-shadow: 0 0 0 1px rgba(26, 24, 20, 0.06); }
+  .chat-send { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: var(--ink); color: #fff; }
+
+  /* staged reveal inside the demo */
+  [data-hiw] [data-step] { opacity: 0; transform: translateY(8px); transition: opacity 0.5s var(--ease), transform 0.5s var(--ease); }
+  [data-hiw] [data-step].on { opacity: 1; transform: none; }
+  [data-hiw] .typing[data-step] { display: none; }
+  [data-hiw] .typing[data-step].on { display: flex; }
+  [data-hiw] .typing[data-step].done { display: none; }
+
+  /* outputs */
+  .hiw-out { display: flex; align-items: center; height: 100%; }
+  .out-line { position: relative; width: 48px; height: 1px; background: var(--line); flex-shrink: 0; overflow: hidden; }
+  .out-line span { position: absolute; top: -1px; left: -40%; width: 40%; height: 3px; background: linear-gradient(90deg, transparent, var(--violet)); animation: flow 2.2s var(--ease) infinite; }
+  .out-stack { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+  .out-card {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 12px 14px; border-radius: 12px;
+    background: #fff; box-shadow: 0 0 0 1px rgba(26, 24, 20, 0.08), 0 8px 20px -12px rgba(26, 24, 20, 0.18);
+  }
+  .out-k { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted-3); font-weight: 500; }
+  .out-v { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 500; color: var(--ink); }
+  .out-meta { font-size: 12px; color: var(--muted); }
+  .pill { font-style: normal; font-size: 11px; font-weight: 500; padding: 1px 8px; border-radius: 999px; }
+  .pill-teal { color: var(--teal); background: color-mix(in srgb, var(--teal) 12%, #fff); }
+  .pill-violet { color: var(--violet); background: color-mix(in srgb, var(--violet) 10%, #fff); }
+
+  /* steps */
+  .hiw-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; margin: 32px 0 0; padding: 0; list-style: none; }
+  .step { display: flex; flex-direction: column; gap: 8px; }
+  .step-bar { height: 2px; background: var(--line); border-radius: 2px; overflow: hidden; margin-bottom: 12px; }
+  .step-bar span { display: block; height: 100%; width: 0; background: var(--ink); transition: width 0.6s var(--ease); }
+  .step.is-done .step-bar span { width: 100%; }
+  .step-n { font-size: 14px; font-weight: 500; color: var(--muted-3); }
+
+  @media (max-width: 1099px) {
+    .hiw-card { grid-template-columns: 1fr 1fr; padding: 32px; gap: 32px; }
+    .hiw-signals { display: grid; grid-template-columns: 1fr 1fr; grid-column: 1 / -1; }
+    .sig-line { display: none; }
+    .out-line { display: none; }
+  }
+  @media (max-width: 809px) {
+    .hiw { padding-top: 80px; }
+    .hiw-card { grid-template-columns: 1fr; padding: 16px; margin-top: 32px; min-height: 0; }
+    .hiw-chat { height: 420px; }
+    .out-stack { display: grid; grid-template-columns: 1fr 1fr; }
+    .out-card { padding: 10px; }
+    .out-v { font-size: 13px; flex-wrap: wrap; }
+    .out-meta { display: none; }
+    .hiw-steps { grid-template-columns: 1fr 1fr; gap: 24px 16px; }
+  }
+</style>
+
+<script>
+  const root = document.querySelector<HTMLElement>('[data-hiw]')!;
+  const steps = [...document.querySelectorAll<HTMLElement>('[data-hiw-step]')];
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // stage → which elements light up, and which of the 4 journey steps is "done"
+  const STAGES = [0, 1, 2, 3, 4];
+  const STAGE_TO_STEP = [0, 1, 2, 2, 3];
+  let stage = -1;
+  let timer: number | undefined;
+  let running = false;
+
+  const render = () => {
+    root.querySelectorAll<HTMLElement>('[data-step]').forEach((el) => {
+      const n = Number(el.dataset.step);
+      el.classList.toggle('on', n <= stage);
+      el.classList.toggle('done', el.classList.contains('typing') && stage > n);
+    });
+    steps.forEach((s, i) => s.classList.toggle('is-done', stage >= 0 && i <= STAGE_TO_STEP[stage]));
+  };
+
+  const tick = () => {
+    stage = stage >= STAGES.length - 1 ? -1 : stage + 1;
+    render();
+    timer = window.setTimeout(tick, stage === -1 ? 700 : stage === STAGES.length - 1 ? 3800 : 1500);
+  };
+
+  if (reduced) {
+    stage = STAGES.length - 1;
+    render();
+  } else {
+    new IntersectionObserver(([e]) => {
+      if (e.isIntersecting && !running) { running = true; tick(); }
+      else if (!e.isIntersecting && running) { running = false; window.clearTimeout(timer); }
+    }, { threshold: 0.3 }).observe(root);
+  }
+</script>

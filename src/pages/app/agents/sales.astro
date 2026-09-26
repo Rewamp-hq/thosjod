@@ -1,0 +1,49 @@
+---
+// Spec: "Configure the Sales Agent's playbook, tone, and escalation rules." Primary: Save Configuration
+// Tooltip: "Scope" setting limits what the agent can discuss - narrower scope reduces hallucination risk.
+import AppShell from '../../../layouts/AppShell.astro';
+import AppHeader from '../../../components/app/AppHeader.astro';
+import Bits from '../../../components/app/Bits.astro';
+---
+
+<AppShell title="Sales Agent" description="Configure the Sales Agent.">
+  <AppHeader
+    title="Sales Agent"
+    desc="Configure the Sales Agent's playbook, tone, and escalation rules."
+    crumbs={[{ label: 'Agents', href: '/app/agents' }]}
+    actions={[{ label: 'Save Configuration', toast: 'Configuration saved.' }]}
+  />
+
+  <div class="grid-2">
+    <section class="acard">
+      <p class="acard-title" style="margin-bottom:14px">Playbook & tone</p>
+      <div style="display:grid;gap:14px">
+        <label class="field">Playbook
+          <textarea rows="4">Greet visitors on pricing and product pages. Answer questions from the knowledge base, qualify against our ICP (company size, use case, timeline), then offer a 20-minute walkthrough.</textarea>
+        </label>
+        <label class="field">Tone
+          <select><option>Friendly & concise</option><option>Formal</option><option>Technical</option></select>
+        </label>
+        <label class="field">Languages
+          <select><option>Auto-detect visitor language</option><option>English only</option></select>
+          <span class="field-hint">Up to 10 languages on Growth; 175+ on Scale.</span>
+        </label>
+      </div>
+    </section>
+
+    <section class="acard">
+      <p class="acard-title" style="margin-bottom:14px">Scope & escalation</p>
+      <div style="display:grid;gap:14px">
+        <label class="field"><span>Scope <Bits tip="“Scope” setting limits what the agent can discuss - narrower scope reduces hallucination risk." /></span>
+          <select><option>Product, pricing & integrations</option><option>Product only</option><option>Everything in the knowledge base</option></select>
+        </label>
+        <div class="toggle-row"><span>Hand off when no grounded answer exists<small>The agent never guesses outside the knowledge base.</small></span><label class="switch"><input type="checkbox" checked disabled /><span></span></label></div>
+        <div class="toggle-row"><span>Escalate on negative sentiment<small>Route to a human when sentiment drops below 0.3.</small></span><label class="switch"><input type="checkbox" checked /><span></span></label></div>
+        <div class="toggle-row"><span>Offer meeting booking<small>Check rep calendars and book inside the chat.</small></span><label class="switch"><input type="checkbox" checked /><span></span></label></div>
+        <label class="field">Escalate to
+          <select><option>Sales team (round robin)</option><option>Enterprise AE team</option></select>
+        </label>
+      </div>
+    </section>
+  </div>
+</AppShell>

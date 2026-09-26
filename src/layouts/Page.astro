@@ -1,0 +1,81 @@
+---
+// Shell for every interior page: header, hero, content sheet, FAQ, CTA, footer.
+import Base from './Base.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import Faq from '../components/Faq.astro';
+import FinalCta from '../components/FinalCta.astro';
+import PageHero from '../components/page/PageHero.astro';
+import { plain } from '../lib/inline';
+import { breadcrumbs, faqPage } from '../lib/schema';
+
+interface Props {
+  title: string;
+  description: string;
+  noindex?: boolean;
+  nofollow?: boolean;
+  hero: {
+    title: string;
+    sub?: string;
+    eyebrow?: string;
+    image?: string | null;
+    primary?: { label: string; href: string } | null;
+    secondary?: { label: string; href: string } | null;
+    compact?: boolean;
+  };
+  crumbs?: { label: string; href: string }[];
+  faq?: { q: string; a: string }[];
+  cta?: { title: string[]; body: string; cta: { label: string; href: string } } | null;
+  schema?: Record<string, unknown>[];
+  keywords?: string[];
+  /** schema.org WebPage subtype (CollectionPage, AboutPage, ContactPage, ...) */
+  pageType?: string;
+  aboutProduct?: boolean;
+}
+
+const { title, description, noindex = false, nofollow = false, hero, crumbs = [], faq = [], cta, schema = [], keywords = [], pageType, aboutProduct = false } = Astro.props;
+const path = Astro.url.pathname.replace(/\/$/, '') || '/';
+
+const crumbSchema = crumbs.length ? [breadcrumbs(path, crumbs)] : [];
+const faqSchema = faq.length ? [faqPage(path, faq.map((f) => ({ q: plain(f.q), a: plain(f.a) })))] : [];
+
+const finalCta = cta === undefined
+  ? {
+      title: ['Give your website a voice', 'worth talking to.'],
+      body: 'Book a 20-minute walkthrough and see Thosjod identify, qualify, and route a real visitor session live.',
+      cta: { label: 'Book a Demo', href: '/demo' },
+    }
+  : cta;
+---
+
+<Base
+  title={title}
+  description={description}
+  noindex={noindex}
+  nofollow={nofollow}
+  image={hero.image}
+  keywords={keywords}
+  pageType={pageType}
+  aboutProduct={aboutProduct}
+  hasCrumbs={crumbs.length > 0}
+  schema={[...crumbSchema, ...faqSchema, ...schema]}
+>
+  <Header />
+  <main>
+    <PageHero {...hero} crumbs={crumbs} />
+    <div class:list={['sheet', { flat: !hero.image }]}>
+      <slot />
+      {faq.length > 0 && <Faq items={faq} />}
+      <slot name="after" />
+      {finalCta && <FinalCta {...finalCta} />}
+    </div>
+  </main>
+  <Footer />
+</Base>
+
+<style>
+  .sheet { position: relative; z-index: 1; background: var(--bg); border-radius: 16px 16px 0 0; margin-top: -16px; padding-bottom: 24px; }
+  .sheet.flat { margin-top: 0; border-radius: 0; }
+  .sheet > :global(.fcta-wrap) { background: transparent; }
+  .sheet > :global(.faq) { background: #fff; padding-top: 104px; }
+</style>

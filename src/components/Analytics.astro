@@ -1,0 +1,102 @@
+---
+// Consent-gated analytics. Each tool loads ONLY if its ID is set in .env AND the visitor accepts
+// non-essential cookies (see /cookie-policy). With no IDs configured, nothing renders at all.
+//   PUBLIC_GA4_ID=G-XXXXXXX            Google Analytics 4
+//   PUBLIC_CLARITY_ID=xxxxxxxxxx       Microsoft Clarity (heatmaps + session replay)
+//   PUBLIC_LINKEDIN_PARTNER_ID=123456  LinkedIn Insight Tag (B2B campaign measurement)
+// Events sent (GA4): cta_book_demo, generate_lead (thank-you page), ai_referral (visits from AI assistants).
+const cfg = {
+  ga4: import.meta.env.PUBLIC_GA4_ID ?? '',
+  clarity: import.meta.env.PUBLIC_CLARITY_ID ?? '',
+  linkedin: import.meta.env.PUBLIC_LINKEDIN_PARTNER_ID ?? '',
+};
+const enabled = Boolean(cfg.ga4 || cfg.clarity || cfg.linkedin);
+---
+
+{enabled && (
+  <>
+    <div class="cc" data-cc hidden role="dialog" aria-label="Cookie preferences" aria-live="polite">
+      <p>We use analytics cookies to understand how visitors use this site. They load only if you accept. <a href="/cookie-policy">Cookie Policy</a></p>
+      <div class="cc-actions">
+        <button class="btn btn-ghost btn-sm" data-cc-choice="denied">Reject</button>
+        <button class="btn btn-dark btn-sm" data-cc-choice="granted">Accept analytics</button>
+      </div>
+    </div>
+
+    <script is:inline define:vars={{ cfg }}>
+      (function () {
+        var KEY = 'tj-consent';
+        var queue = [];
+        var loaded = false;
+        window.tjTrack = function (name, params) {
+          if (loaded && window.gtag) window.gtag('event', name, params || {});
+          else queue.push([name, params || {}]);
+        };
+
+        function add(src) { var s = document.createElement('script'); s.async = true; s.src = src; document.head.appendChild(s); }
+
+        function load() {
+          if (loaded) return;
+          loaded = true;
+          if (cfg.ga4) {
+            window.dataLayer = window.dataLayer || [];
+            window.gtag = function () { window.dataLayer.push(arguments); };
+            window.gtag('consent', 'default', { analytics_storage: 'granted', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' });
+            window.gtag('js', new Date());
+            window.gtag('config', cfg.ga4);
+            add('https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(cfg.ga4));
+          }
+          if (cfg.clarity) {
+            (function (c, l, a, r, i) { c[a] = c[a] || function () { (c[a].q = c[a].q || []).push(arguments); }; add('https://www.clarity.ms/tag/' + encodeURIComponent(i)); })(window, document, 'clarity', 'script', cfg.clarity);
+          }
+          if (cfg.linkedin) {
+            window._linkedin_data_partner_ids = window._linkedin_data_partner_ids || [];
+            window._linkedin_data_partner_ids.push(cfg.linkedin);
+            add('https://snap.licdn.com/li.lms-analytics/insight.min.js');
+          }
+          queue.splice(0).forEach(function (e) { window.tjTrack(e[0], e[1]); });
+        }
+
+        var banner = document.querySelector('[data-cc]');
+        var choice = null;
+        try { choice = localStorage.getItem(KEY); } catch (e) {}
+        if (choice === 'granted') load();
+        else if (choice !== 'denied') banner.hidden = false;
+
+        document.addEventListener('click', function (e) {
+          var btn = e.target.closest('[data-cc-choice]');
+          if (btn) {
+            var v = btn.getAttribute('data-cc-choice');
+            try { localStorage.setItem(KEY, v); } catch (err) {}
+            banner.hidden = true;
+            if (v === 'granted') load();
+            return;
+          }
+          if (e.target.closest('[data-cookie-settings]')) { banner.hidden = false; return; }
+          var a = e.target.closest('a[href="/demo"]');
+          if (a) window.tjTrack('cta_book_demo', { page: location.pathname, label: (a.textContent || '').trim().slice(0, 40) });
+        });
+
+        // GEO measurement: visits referred by AI assistants / answer engines
+        var ref = '';
+        try { ref = document.referrer ? new URL(document.referrer).hostname : ''; } catch (e) {}
+        if (/(^|\.)(chatgpt\.com|openai\.com|perplexity\.ai|gemini\.google\.com|copilot\.microsoft\.com|claude\.ai|you\.com|phind\.com)$/.test(ref)) {
+          window.tjTrack('ai_referral', { source: ref, page: location.pathname });
+        }
+      })();
+    </script>
+  </>
+)}
+
+<style>
+  .cc {
+    position: fixed; left: 16px; bottom: 16px; z-index: 200;
+    max-width: 420px; padding: 16px 18px; border-radius: 14px;
+    background: #fff; color: var(--ink); font-size: 14px; line-height: 20px;
+    box-shadow: 0 0 0 1px rgba(26,24,20,.08), 0 24px 48px -16px rgba(26,24,20,.3);
+  }
+  .cc a { text-decoration: underline; text-underline-offset: 3px; }
+  .cc-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+  .cc[hidden] { display: none; }
+  @media (max-width: 560px) { .cc { left: 8px; right: 8px; bottom: 8px; max-width: none; } }
+</style>

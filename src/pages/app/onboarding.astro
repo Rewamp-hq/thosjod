@@ -1,0 +1,78 @@
+---
+// Spec: "Guided, no-code setup: connect CRM, define ICP, configure first agent."
+// Primary: Continue Setup · Secondary: Skip for now · Success: "Setup complete" → /app/dashboard
+import AppShell from '../../layouts/AppShell.astro';
+import Icon from '../../components/Icon.astro';
+import Bits from '../../components/app/Bits.astro';
+
+const steps = ['Connect CRM', 'Define ICP', 'Configure first agent', 'Install the widget'];
+---
+
+<AppShell title="Onboarding" description="Guided, no-code setup.">
+  <div class="ahead">
+    <div>
+      <h1>Set up Thosjod</h1>
+      <p class="ahead-desc">Guided, no-code setup: connect your CRM, define your ICP, and configure your first agent.</p>
+    </div>
+  </div>
+
+  <section class="acard" style="max-width:760px" data-wizard>
+    <ol class="steps-bar" style="padding:0;margin:0 0 24px">
+      {steps.map((s, i) => <li class:list={{ current: i === 0 }} data-step-label>{String(i + 1).padStart(2, '0')} · {s}</li>)}
+    </ol>
+
+    <div class="wstep current" data-step>
+      <p class="acard-title">Connect your CRM</p>
+      <p class="acard-sub">Qualified leads, transcripts and enrichment data sync here automatically.</p>
+      <label class="choice"><input type="radio" name="crm" value="HubSpot" checked /> <strong>HubSpot</strong> <span class="acard-sub">Two-way sync of contacts, deals, and transcripts</span></label>
+      <label class="choice"><input type="radio" name="crm" value="Salesforce" /> <strong>Salesforce</strong> <span class="acard-sub">Lead and opportunity routing · Scale and Enterprise</span></label>
+      <label class="choice"><input type="radio" name="crm" value="none" /> <strong>I’ll connect later</strong></label>
+    </div>
+
+    <div class="wstep" data-step>
+      <p class="acard-title">Define your Ideal Customer Profile <Bits tip="Every visitor is scored against these criteria as the conversation happens." /></p>
+      <div class="form-grid">
+        <label class="field">Industries<input placeholder="e.g. SaaS, Logistics" /></label>
+        <label class="field">Company size<select><option>Any</option><option>50–200</option><option>200–1,000</option><option>1,000+</option></select></label>
+        <label class="field">Regions<input placeholder="e.g. India, APAC" /></label>
+        <label class="field">Qualifying signals<input placeholder="e.g. visited /pricing, asked about integrations" /></label>
+      </div>
+    </div>
+
+    <div class="wstep" data-step>
+      <p class="acard-title">Configure your first agent</p>
+      <label class="choice"><input type="radio" name="agent" checked /> <strong>Sales Agent</strong> <span class="acard-sub">Qualify visitors and book meetings</span></label>
+      <label class="choice"><input type="radio" name="agent" /> <strong>Support Agent</strong> <span class="acard-sub">Answer from your knowledge base, escalate the rest</span></label>
+      <label class="field">Knowledge source to start with<input placeholder="https://yourcompany.com/sitemap.xml" /></label>
+    </div>
+
+    <div class="wstep" data-step>
+      <p class="acard-title">Install the widget</p>
+      <p class="acard-sub">Add your workspace snippet to the &lt;head&gt; of every page. The snippet is generated when your workspace goes live; no engineering sprint required.</p>
+      <div class="keybox"><Icon name="code" size={14} />&lt;script&gt; - your workspace snippet will appear here &lt;/script&gt;</div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:24px">
+      <a class="abtn abtn-ghost" href="/app/dashboard">Skip for now</a>
+      <button class="abtn" data-next>Continue Setup</button>
+    </div>
+  </section>
+</AppShell>
+
+<script>
+  const w = document.querySelector<HTMLElement>('[data-wizard]')!;
+  const panes = [...w.querySelectorAll<HTMLElement>('[data-step]')];
+  const labels = [...w.querySelectorAll<HTMLElement>('[data-step-label]')];
+  const next = w.querySelector<HTMLButtonElement>('[data-next]')!;
+  let i = 0;
+  const show = () => {
+    panes.forEach((p, j) => p.classList.toggle('current', j === i));
+    labels.forEach((l, j) => { l.classList.toggle('current', j === i); l.classList.toggle('done', j < i); });
+    next.textContent = i === panes.length - 1 ? 'Finish Setup' : 'Continue Setup';
+  };
+  next.addEventListener('click', () => {
+    if (i < panes.length - 1) { i++; show(); return; }
+    (window as any).tjToast?.('Setup complete');
+    setTimeout(() => (location.href = '/app/dashboard'), 900);
+  });
+</script>

@@ -1,0 +1,120 @@
+---
+import '../styles/global.css';
+import Analytics from '../components/Analytics.astro';
+import { organization, website, webPage, type Node } from '../lib/schema';
+
+interface Props {
+  title: string;
+  description: string;
+  /** Extra JSON-LD nodes for this page (merged into one @graph) */
+  schema?: Record<string, unknown>[];
+  noindex?: boolean;
+  nofollow?: boolean;
+  /** Absolute image URL for social cards; falls back to /og-default.png */
+  image?: string | null;
+  keywords?: string[];
+  /** schema.org type of the page itself (WebPage, CollectionPage, AboutPage, ContactPage, ...) */
+  pageType?: string;
+  /** Adds `about: #software` to the WebPage node */
+  aboutProduct?: boolean;
+  /** Set by Page.astro when a BreadcrumbList node is present */
+  hasCrumbs?: boolean;
+}
+
+const {
+  title, description, schema = [], noindex = false, nofollow = false,
+  image, keywords = [], pageType = 'WebPage', aboutProduct = false, hasCrumbs = false,
+} = Astro.props;
+
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const path = Astro.url.pathname.replace(/\/$/, '') || '/';
+
+// Social image: page hero cropped to 1200x630, else the generated default card
+const ogImage = image
+  ? image.replace(/([?&])w=\d+/, '$1w=1200') + (image.includes('h=') ? '' : '&h=630')
+  : new URL('/og-default.png', Astro.site).toString();
+
+const robots = noindex
+  ? nofollow ? 'noindex, nofollow' : 'noindex, follow'
+  : 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1';
+
+// One linked graph per page. Nodes passed in may still carry their own @context; strip it.
+const extra = schema.map(({ ['@context']: _c, ...rest }) => rest as Node);
+const graph = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    organization(),
+    website(),
+    webPage({ url: path, title, description, type: pageType, image: image ? ogImage : null, crumbs: hasCrumbs, about: aboutProduct }),
+    ...extra,
+  ],
+};
+
+const gsc = import.meta.env.PUBLIC_GSC_VERIFICATION;
+const bing = import.meta.env.PUBLIC_BING_VERIFICATION;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    {keywords.length > 0 && <meta name="keywords" content={keywords.join(', ')} />}
+    <meta name="robots" content={robots} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+    <link rel="alternate" type="text/plain" title="LLM-friendly site summary" href="/llms.txt" />
+    <meta name="theme-color" content="#1a1814" />
+
+    {gsc && <meta name="google-site-verification" content={gsc} />}
+    {bing && <meta name="msvalidate.01" content={bing} />}
+
+    <meta property="og:type" content={path === '/' ? 'website' : 'article'} />
+    <meta property="og:site_name" content="Thosjod" />
+    <meta property="og:locale" content="en_IN" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={title} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Stack+Sans+Headline:wght@300..700&display=swap"
+    />
+    <link rel="preconnect" href="https://images.unsplash.com" />
+
+    <script type="application/ld+json" set:html={JSON.stringify(graph)} />
+  </head>
+  <body>
+    <slot />
+    <Analytics />
+
+    <script>
+      // Reveal-on-scroll for any element with .reveal
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            if (e.isIntersecting) {
+              e.target.classList.add('is-in');
+              io.unobserve(e.target);
+            }
+          }
+        },
+        { rootMargin: '0px 0px -8% 0px', threshold: 0.08 },
+      );
+      document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+    </script>
+  </body>
+</html>

@@ -1,0 +1,70 @@
+---
+import { handRoutes } from '../data/handRoutes';
+const route = handRoutes['/demo'];
+import Page from '../layouts/Page.astro';
+import LeadForm from '../components/page/LeadForm.astro';
+import type { Field } from '../components/page/LeadForm.astro';
+import Icon from '../components/Icon.astro';
+
+const fields: Field[] = [
+  { name: 'full-name', label: 'Full name', type: 'text', required: true },
+  { name: 'work-email', label: 'Work email', type: 'email', required: true },
+  { name: 'company', label: 'Company name', type: 'text', required: true },
+  { name: 'website', label: 'Company website', type: 'url', required: true, placeholder: 'https://' },
+  {
+    name: 'interest', label: 'Most interested in', type: 'select', required: true,
+    options: ['Website conversion', 'Lead generation & visitor identification', 'AI sales & support agents', 'AI visibility & GEO/AEO', 'Something else'],
+  },
+  { name: 'message', label: 'Anything we should know?', type: 'textarea', required: false },
+];
+
+const steps = [
+  { icon: 'user', title: 'Identify', body: 'See an anonymous visitor session deanonymized and enriched - without a form.' },
+  { icon: 'spark', title: 'Qualify', body: 'Watch the grounded agent score the conversation against an ICP in real time.' },
+  { icon: 'route', title: 'Route', body: 'Follow the lead to the right rep, with the meeting booked and the CRM synced.' },
+];
+---
+
+<Page
+  title={route.title}
+  description={route.description}
+  keywords={route.keywords ?? []}
+  aboutProduct
+  hero={{
+    eyebrow: 'Book a Demo',
+    title: 'See Thosjod work on a real visitor session.',
+    sub: 'A 20-minute walkthrough: identification, a grounded conversation, qualification, and routing - live.',
+  }}
+  crumbs={[{ label: 'Book a Demo', href: '/demo' }]}
+  cta={null}
+>
+  <section class="container demo">
+    <div class="demo-left">
+      <p class="demo-kicker">In 20 minutes you’ll see</p>
+      <ol class="demo-steps">
+        {steps.map((s, i) => (
+          <li class="reveal" data-delay={i}>
+            <span class="ds-icon"><Icon name={s.icon} size={16} /></span>
+            <div><p class="ds-t">{s.title}</p><p class="body-sm">{s.body}</p></div>
+          </li>
+        ))}
+      </ol>
+      <p class="body-sm demo-alt">Prefer to explore first? Try the <a href="/tools/ai-visibility-audit">free AI Visibility Audit</a> or see <a href="/pricing">pricing</a>.</p>
+    </div>
+    <div class="reveal">
+      <LeadForm fields={fields} submit="Book my demo" formName="demo" />
+    </div>
+  </section>
+</Page>
+
+<style>
+  .demo { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 56px; padding-top: 32px; padding-bottom: 104px; align-items: start; }
+  .demo-kicker { font-size: 14px; font-weight: 500; color: var(--muted-2); margin-bottom: 20px; }
+  .demo-steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+  .demo-steps li { display: flex; gap: 14px; padding: 20px; border-radius: 16px; background: #fff; box-shadow: 0 0 0 1px rgba(26,24,20,.05); }
+  .ds-icon { width: 36px; height: 36px; flex-shrink: 0; display: grid; place-items: center; border-radius: 10px; color: var(--teal); background: color-mix(in srgb, var(--teal) 12%, #fff); }
+  .ds-t { font-size: 16px; font-weight: 500; margin-bottom: 2px; }
+  .demo-alt { margin-top: 24px; }
+  .demo-alt a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+  @media (max-width: 1099px) { .demo { grid-template-columns: 1fr; gap: 32px; } }
+</style>

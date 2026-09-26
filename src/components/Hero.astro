@@ -1,0 +1,193 @@
+---
+import { heroSlides } from '../data/home';
+---
+
+<section class="hero" data-hero aria-roledescription="carousel" aria-label="Thosjod overview">
+  <div class="hero-media" aria-hidden="true">
+    {heroSlides.map((s, i) => (
+      <div class={`hero-img ${i === 0 ? 'is-active' : ''}`} data-hero-img>
+        <img src={s.image} alt="" loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : 'auto'} />
+      </div>
+    ))}
+    <div class="hero-shade"></div>
+  </div>
+
+  <div class="hero-body container">
+    <div class="hero-copy">
+      {heroSlides.map((s, i) => (
+        <div class={`hero-slide ${i === 0 ? 'is-active' : ''}`} data-hero-slide aria-hidden={i !== 0 ? 'true' : undefined}>
+          {i === 0 ? (
+            <h1 class="h1">{s.title[0]}<br />{s.title[1]}</h1>
+          ) : (
+            <p class="h1" role="heading" aria-level="2">{s.title[0]}<br />{s.title[1]}</p>
+          )}
+          <p class="lead hero-sub">{s.sub}</p>
+          <div class="hero-ctas">
+            <a class="btn btn-white" href={s.primary.href} tabindex={i !== 0 ? -1 : undefined}>{s.primary.label}</a>
+            <a class="btn btn-glass" href={s.secondary.href} tabindex={i !== 0 ? -1 : undefined}>{s.secondary.label}</a>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div class="hero-tabs" role="tablist" aria-label="Choose a capability">
+      {heroSlides.map((s, i) => (
+        <button
+          class={`hero-tab ${i === 0 ? 'is-active' : ''}`}
+          role="tab"
+          aria-selected={i === 0 ? 'true' : 'false'}
+          data-hero-tab={i}
+        >
+          {s.badge === 'logo' ? (
+            <img class="hero-tab-icon" src="/favicon.png" alt="" width="20" height="20" />
+          ) : (
+            <span class={`badge badge-${s.tone}`}>{s.badge}</span>
+          )}
+          <span class="hero-tab-label">{s.tab}</span>
+          <span class="hero-tab-bar" aria-hidden="true"><span></span></span>
+        </button>
+      ))}
+      <button class="hero-pause" data-hero-pause aria-label="Pause autoplay">
+        <svg class="i-pause" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.5v9M11 3.5v9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
+        <svg class="i-play" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.5l7 4.5-7 4.5z" fill="currentColor" /></svg>
+      </button>
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    height: 100svh;
+    min-height: 680px;
+    overflow: hidden;
+    color: #fff;
+    background: #000;
+    z-index: 0;
+  }
+  .hero-media, .hero-img, .hero-shade { position: absolute; inset: 0; }
+  .hero-img { opacity: 0; transition: opacity 1.2s var(--ease); }
+  .hero-img.is-active { opacity: 1; }
+  .hero-img img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.08); transition: transform 8s linear; }
+  .hero-img.is-active img { transform: scale(1); }
+  .hero-shade {
+    background:
+      linear-gradient(180deg, rgba(0, 0, 0, 0.62) 0%, rgba(0, 0, 0, 0.5) 45%, rgba(0, 0, 0, 0.7) 100%),
+      rgba(10, 9, 8, 0.3);
+  }
+
+  .hero-body { position: relative; height: 100%; display: flex; flex-direction: column; justify-content: space-between; padding-top: 170px; padding-bottom: 20px; }
+  .hero-copy { position: relative; display: grid; }
+  .hero-slide {
+    grid-area: 1 / 1;
+    max-width: 980px;
+    display: flex; flex-direction: column; align-items: flex-start;
+    opacity: 0; transform: translateY(16px); pointer-events: none;
+    transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
+  }
+  .hero-slide.is-active { opacity: 1; transform: none; pointer-events: auto; transition-delay: 0.15s; }
+  .hero-sub { margin-top: 20px; max-width: 560px; color: rgba(255, 255, 255, 0.92); }
+  .hero-ctas { display: flex; gap: 8px; margin-top: 32px; flex-wrap: wrap; }
+
+  .hero-tabs { display: flex; gap: 8px; align-items: stretch; }
+  .hero-tab {
+    position: relative;
+    width: 215px;
+    height: 102px;
+    padding: 20px;
+    display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start;
+    text-align: left;
+    border-radius: 8px;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    backdrop-filter: blur(3.55px);
+    -webkit-backdrop-filter: blur(3.55px);
+    overflow: hidden;
+    transition: background-color 0.4s var(--ease), color 0.4s var(--ease), border-color 0.4s;
+  }
+  .hero-tab:hover { background: rgba(255, 255, 255, 0.18); }
+  .hero-tab.is-active { background: #fff; color: var(--ink); border-color: rgba(255, 255, 255, 0.4); }
+  .hero-tab-icon { width: 20px; height: 20px; object-fit: contain; }
+  .hero-tab-label { font-size: 15px; font-weight: 500; line-height: 20px; letter-spacing: -0.01em; }
+  .hero-tab-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: rgba(26, 24, 20, 0.08); opacity: 0; }
+  .hero-tab-bar span { display: block; height: 100%; width: 0; background: var(--ink); }
+  .hero-tab.is-active .hero-tab-bar { opacity: 1; }
+  .hero-tab.is-active .hero-tab-bar span { animation: heroBar var(--hero-dur, 7s) linear forwards; }
+  .hero.is-paused .hero-tab.is-active .hero-tab-bar span { animation-play-state: paused; }
+  @keyframes heroBar { to { width: 100%; } }
+
+  .hero-pause {
+    align-self: flex-end;
+    margin-left: auto;
+    width: 36px; height: 36px; border-radius: 999px;
+    display: grid; place-items: center;
+    background: rgba(255, 255, 255, 0.16);
+    backdrop-filter: blur(8px);
+    color: #fff;
+  }
+  .hero-pause svg { width: 14px; height: 14px; }
+  .hero-pause .i-play, .hero.is-paused .hero-pause .i-pause { display: none; }
+  .hero.is-paused .hero-pause .i-play { display: block; }
+
+  @media (max-width: 1199px) {
+    .hero-tab { width: auto; flex: 1; }
+  }
+  @media (max-width: 809px) {
+    .hero-body { padding-top: 120px; padding-bottom: 16px; }
+    .hero-sub { margin-top: 16px; }
+    .hero-ctas { margin-top: 24px; }
+    .hero-tabs { overflow-x: auto; scrollbar-width: none; margin-inline: calc(var(--gutter) * -1); padding-inline: var(--gutter); }
+    .hero-tabs::-webkit-scrollbar { display: none; }
+    .hero-tab { flex: 0 0 168px; height: 88px; padding: 14px; }
+    .hero-tab-label { font-size: 14px; }
+    .hero-pause { display: none; }
+  }
+</style>
+
+<script>
+  const hero = document.querySelector<HTMLElement>('[data-hero]')!;
+  const imgs = [...hero.querySelectorAll<HTMLElement>('[data-hero-img]')];
+  const slides = [...hero.querySelectorAll<HTMLElement>('[data-hero-slide]')];
+  const tabs = [...hero.querySelectorAll<HTMLButtonElement>('[data-hero-tab]')];
+  const pauseBtn = hero.querySelector<HTMLButtonElement>('[data-hero-pause]')!;
+  const DURATION = 7000;
+  hero.style.setProperty('--hero-dur', `${DURATION}ms`);
+
+  let current = 0;
+  let paused = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let timer: number | undefined;
+  if (paused) hero.classList.add('is-paused');
+
+  const go = (i: number) => {
+    current = (i + tabs.length) % tabs.length;
+    [imgs, slides, tabs].forEach((list) => list.forEach((el, j) => el.classList.toggle('is-active', j === current)));
+    tabs.forEach((t, j) => t.setAttribute('aria-selected', String(j === current)));
+    slides.forEach((s, j) => {
+      const on = j === current;
+      s.toggleAttribute('aria-hidden', !on);
+      s.querySelectorAll('a').forEach((a) => (on ? a.removeAttribute('tabindex') : a.setAttribute('tabindex', '-1')));
+    });
+    // restart progress-bar animation
+    const bar = tabs[current].querySelector<HTMLElement>('.hero-tab-bar span');
+    if (bar) { bar.style.animation = 'none'; void bar.offsetWidth; bar.style.animation = ''; }
+    schedule();
+  };
+
+  const schedule = () => {
+    window.clearTimeout(timer);
+    if (!paused) timer = window.setTimeout(() => go(current + 1), DURATION);
+  };
+
+  tabs.forEach((t, i) => t.addEventListener('click', () => go(i)));
+  pauseBtn.addEventListener('click', () => {
+    paused = !paused;
+    hero.classList.toggle('is-paused', paused);
+    pauseBtn.setAttribute('aria-label', paused ? 'Play autoplay' : 'Pause autoplay');
+    if (paused) window.clearTimeout(timer);
+    else go(current); // restart bar + timer together so they stay in sync
+  });
+  schedule();
+</script>

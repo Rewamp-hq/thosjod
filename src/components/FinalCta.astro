@@ -1,0 +1,43 @@
+---
+interface Props {
+  title: string[];
+  body: string;
+  cta: { label: string; href: string };
+}
+const { title, body, cta } = Astro.props;
+---
+
+<section class="fcta-wrap" aria-labelledby="fcta-title">
+  <div class="container">
+    <div class="fcta reveal">
+      <div class="fcta-glow" aria-hidden="true"></div>
+      <h2 id="fcta-title" class="h2 fcta-title">{title[0]}<br />{title[1]}</h2>
+      <p class="fcta-body">{body}</p>
+      <a href={cta.href} class="btn btn-white">{cta.label}</a>
+    </div>
+  </div>
+</section>
+
+<style>
+  .fcta-wrap { background: #fff; padding: 24px 0; }
+  .fcta {
+    position: relative;
+    overflow: hidden;
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    padding: 82px 20px;
+    background: var(--ink);
+    border-radius: 24px;
+    color: #fff;
+  }
+  .fcta-glow {
+    position: absolute; left: 50%; top: 100%; width: 900px; height: 500px;
+    translate: -50% -45%;
+    background: radial-gradient(closest-side, rgba(89, 74, 255, 0.35), rgba(22, 255, 222, 0.08) 60%, transparent);
+    filter: blur(20px);
+    pointer-events: none;
+  }
+  .fcta-title { position: relative; color: #fff; }
+  .fcta-body { position: relative; margin: 12px 0 28px; max-width: 460px; font-size: 14px; line-height: 20px; color: rgba(255, 255, 255, 0.72); }
+  .fcta .btn { position: relative; }
+  @media (max-width: 809px) { .fcta { padding: 56px 20px; border-radius: 16px; } }
+</style>

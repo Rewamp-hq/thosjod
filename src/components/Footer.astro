@@ -1,0 +1,110 @@
+---
+import { footerColumns, legalLinks, site } from '../data/site';
+import Logo from './Logo.astro';
+
+const year = new Date().getFullYear();
+const endpoint = import.meta.env.PUBLIC_FORM_ENDPOINT ?? '';
+const analyticsOn = Boolean(import.meta.env.PUBLIC_GA4_ID || import.meta.env.PUBLIC_CLARITY_ID || import.meta.env.PUBLIC_LINKEDIN_PARTNER_ID);
+---
+
+<footer class="ft">
+  <div class="ft-card">
+    <div class="container">
+      <div class="ft-cols">
+        <div class="ft-brand">
+          <a href="/" aria-label="Thosjod home"><Logo variant="dark" height={28} /></a>
+          <p class="ft-tag">{site.tagline}.<br /><span>Get product updates - new capabilities, straight to your inbox.</span></p>
+          <form class="ft-form" method="post" action={endpoint || undefined} data-endpoint={endpoint} data-news>
+            <input type="hidden" name="form" value="newsletter" />
+            <label for="ft-email" class="sr-only">Work email</label>
+            <input id="ft-email" name="email" type="email" required placeholder="you@company.com" autocomplete="email" />
+            <button type="submit" class="btn btn-dark btn-sm">Subscribe</button>
+          </form>
+          <p class="ft-news-status" role="status" aria-live="polite" hidden></p>
+        </div>
+
+        {footerColumns.map((col) => (
+          <nav class="ft-col" aria-label={col.title}>
+            <p class="ft-title">{col.title}</p>
+            <ul>
+              {col.links.map((l) => <li><a href={l.href}>{l.label}</a></li>)}
+            </ul>
+          </nav>
+        ))}
+      </div>
+
+      <div class="ft-legal">
+        <p>© {year} Thosjod. All rights reserved.</p>
+        <ul>
+          {legalLinks.map((l) => <li><a href={l.href}>{l.label}</a></li>)}
+          {analyticsOn && <li><button type="button" class="ft-cookie" data-cookie-settings>Cookie settings</button></li>}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="ft-ghost container" aria-hidden="true">
+    <img src="/thosjod.png" alt="" loading="lazy" />
+  </div>
+</footer>
+
+<style>
+  .ft { background: var(--bg); }
+  .ft-card { background: #fff; border-radius: 0 0 24px 24px; padding-top: 64px; }
+  .ft-cols { display: grid; grid-template-columns: 320px repeat(5, 1fr); gap: 48px 32px; padding-bottom: 64px; border-bottom: 1px solid var(--line); }
+  .ft-brand { display: flex; flex-direction: column; gap: 20px; }
+  .ft-tag { font-size: 14px; line-height: 20px; color: var(--ink); }
+  .ft-tag span { color: var(--muted); }
+  .ft-form {
+    display: flex; align-items: center; gap: 8px;
+    height: 48px; padding: 6px 6px 6px 16px;
+    border-radius: 999px; background: #fff;
+    box-shadow: inset 0 0 0 1px var(--line);
+    transition: box-shadow 0.2s;
+  }
+  .ft-form:focus-within { box-shadow: inset 0 0 0 1px var(--ink); }
+  .ft-form input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 14px; color: var(--ink); }
+  .ft-form input::placeholder { color: var(--muted-3); }
+  .ft-news-status { font-size: 12px; color: var(--muted); margin-top: -8px; }
+  .ft-title { font-size: 14px; font-weight: 500; color: var(--ink); margin-bottom: 16px; }
+  .ft-col ul { display: flex; flex-direction: column; gap: 10px; }
+  .ft-col a { font-size: 14px; line-height: 20px; color: var(--muted); transition: color 0.2s; }
+  .ft-col a:hover { color: var(--ink); }
+  .ft-legal { display: flex; align-items: center; justify-content: space-between; gap: 16px 24px; flex-wrap: wrap; padding: 20px 0 24px; font-size: 12px; color: var(--muted); }
+  .ft-legal ul { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+  .ft-legal a:hover, .ft-cookie:hover { color: var(--ink); }
+  .ft-cookie { font-size: 12px; color: var(--muted); }
+  .ft-ghost { padding-top: 32px; }
+  .ft-ghost img { width: 100%; height: auto; filter: grayscale(1) contrast(0.6); opacity: 0.07; transform: translateY(12%); }
+  .ft { overflow: hidden; }
+
+  @media (max-width: 1099px) {
+    .ft-cols { grid-template-columns: repeat(3, 1fr); }
+    .ft-brand { grid-column: 1 / -1; max-width: 420px; }
+  }
+  @media (max-width: 809px) {
+    .ft-card { padding-top: 48px; border-radius: 0 0 16px 16px; }
+    .ft-cols { grid-template-columns: 1fr 1fr; gap: 36px 16px; padding-bottom: 40px; }
+    .ft-legal { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+
+<script>
+  const news = document.querySelector<HTMLFormElement>('[data-news]');
+  if (news) {
+    const status = news.parentElement!.querySelector<HTMLElement>('.ft-news-status')!;
+    const say = (msg: string) => { status.hidden = false; status.textContent = msg; };
+    news.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const endpoint = news.dataset.endpoint;
+      if (!endpoint) return say("Product updates start at launch - this form isn't connected yet.");
+      try {
+        const res = await fetch(endpoint, { method: 'POST', body: new FormData(news), headers: { Accept: 'application/json' } });
+        if (!res.ok) throw new Error(String(res.status));
+        window.location.href = '/thank-you?form=newsletter';
+      } catch {
+        say('Something went wrong - please try again in a moment.');
+      }
+    });
+  }
+</script>

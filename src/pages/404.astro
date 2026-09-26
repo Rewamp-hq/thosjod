@@ -1,0 +1,30 @@
+---
+import Page from '../layouts/Page.astro';
+import ContentSection from '../components/page/ContentSection.astro';
+import type { Section } from '../lib/content';
+
+const section: Section = {
+  id: 'popular', eyebrow: 'Popular pages', title: 'Try one of these instead.',
+  blocks: [{
+    type: 'table', head: ['Page', 'Link'],
+    rows: [['Platform', '`/platform`'], ['Features', '`/features`'], ['Pricing', '`/pricing`'], ['Industries', '`/industries`']],
+  }],
+};
+---
+
+<Page
+  title="Page not found - Thosjod"
+  description="The page you were looking for doesn't exist."
+  noindex
+  nofollow
+  hero={{
+    eyebrow: '404',
+    title: 'This page took a different route.',
+    sub: 'The page you were looking for doesn’t exist or has moved.',
+    primary: { label: 'Back to home', href: '/' },
+    secondary: { label: 'Contact us', href: '/contact' },
+  }}
+  cta={null}
+>
+  <ContentSection section={section} index={1} />
+</Page>

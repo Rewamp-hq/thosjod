@@ -1,0 +1,35 @@
+---
+import AppShell from '../../../layouts/AppShell.astro';
+import AppHeader from '../../../components/app/AppHeader.astro';
+import SubNav from '../../../components/app/SubNav.astro';
+import Panel from '../../../components/app/Panel.astro';
+import Action from '../../../components/app/Action.astro';
+import FormDialog from '../../../components/app/FormDialog.astro';
+import { visibilityNav } from '../../../data/app/nav';
+import { trackedCompetitors, visibility } from '../../../data/app/sample';
+
+const mentions = (c: string) => visibility.filter((v) => v.competitor.includes(c)).length;
+---
+
+<AppShell title="Competitor Tracking" description="Manage tracked competitor names for mention detection.">
+  <AppHeader title="Competitor Tracking" desc="Manage tracked competitor names for mention detection." crumbs={[{ label: 'AI Visibility', href: '/app/ai-visibility' }]} actions={[{ label: 'Add Competitor', icon: 'plus', modal: 'dlg-comp' }]} />
+  <SubNav items={visibilityNav} />
+
+  <Panel empty="No competitors added yet." emptyIcon="building" emptyAction={{ label: 'Add Competitor', modal: 'dlg-comp' }} flush>
+    <div class="tbl-scroll">
+      <table class="atbl" id="t-comp" data-filterable>
+        <thead><tr><th>Competitor</th><th>Mentions in tracked answers</th><th></th></tr></thead>
+        <tbody>
+          {trackedCompetitors.map((c) => (
+            <tr>
+              <td class="strong">{c}</td><td class="num">{mentions(c)} of {visibility.length}</td>
+              <td style="text-align:right"><Action label="Remove" variant="ghost" size="sm" removeRow confirm={`Stop tracking ${c}?`} confirmBody={`${c} will no longer be detected in AI answers. Existing results stay in your reports.`} confirmOk="Stop tracking" toast={`${c} removed.`} /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </Panel>
+
+  <FormDialog id="dlg-comp" title="Add competitor" submit="Add competitor" toast="Now tracking {name}." fields={[{ name: 'name', label: 'Competitor name', placeholder: 'As it appears in AI answers' }]} />
+</AppShell>

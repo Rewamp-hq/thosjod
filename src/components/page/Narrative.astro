@@ -1,0 +1,119 @@
+---
+// Groups short, paragraph-only sections into one connected story row -
+// the <ProblemSolution />, <RealityProblemFit /> and <ProblemWorkflowFriction />
+// blocks from 36-frontend-implementation-map.md.
+import { md } from '../../lib/inline';
+import { pillarHref } from '../../lib/featureLinks';
+import Eyebrow from '../Eyebrow.astro';
+import Icon from '../Icon.astro';
+
+export type NarrativeItem = {
+  id: string;
+  label: string;
+  title: string;
+  paras: string[];
+  notes: string[];
+  highlight: boolean;
+  drawsOn?: string[];
+};
+
+interface Props { eyebrow: string; title: string; items: NarrativeItem[]; flow?: boolean; tone?: 'on-bg' | 'on-white' }
+const { eyebrow, title, items, flow = true, tone = 'on-bg' } = Astro.props;
+const cols = items.length === 4 && !flow ? 2 : Math.min(items.length, 4);
+---
+
+<section class:list={['nar', tone]}>
+  <div class="container">
+    <div class="nar-head reveal">
+      <Eyebrow>{eyebrow}</Eyebrow>
+      <h2 class="h2">{title}</h2>
+    </div>
+
+    <ol class:list={['nar-row', `cols-${cols}`, { flow }]}>
+      {items.map((it, i) => (
+        <li id={it.id} class:list={['nar-card reveal', { hl: it.highlight }]} data-delay={i}>
+          <p class="nar-label"><span>{String(i + 1).padStart(2, '0')}</span>{it.label}</p>
+          <h3 class="nar-title" set:html={md(it.title)} />
+          {it.paras.map((p) => <p class="nar-body" set:html={md(p)} />)}
+          {it.notes.map((n) => <p class="nar-note" set:html={md(n)} />)}
+          {it.drawsOn && it.drawsOn.length > 0 && (
+            <div class="nar-draws">
+              <span>Draws on</span>
+              {it.drawsOn.map((d) => {
+                const href = pillarHref(d);
+                return href ? <a href={href}>{d}<Icon name="arrow-up-right" size={12} /></a> : <em>{d}</em>;
+              })}
+            </div>
+          )}
+          {flow && i < items.length - 1 && <span class="nar-arrow" aria-hidden="true"><Icon name="arrow-right" size={14} /></span>}
+        </li>
+      ))}
+    </ol>
+  </div>
+</section>
+
+<style>
+  .nar { padding: 104px 0; }
+  .nar.on-white { background: #fff; }
+  .nar-head { display: flex; flex-direction: column; gap: 16px; max-width: 760px; }
+  .nar-head .h2 { text-wrap: balance; }
+  .nar-row { list-style: none; margin: 56px 0 0; padding: 0; display: grid; gap: 16px; }
+  .nar-row.cols-2 { grid-template-columns: repeat(2, 1fr); }
+  .nar-row.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .nar-row.cols-4 { grid-template-columns: repeat(4, 1fr); }
+
+  .nar-card {
+    position: relative;
+    display: flex; flex-direction: column; gap: 12px;
+    padding: 28px;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 0 0 1px rgba(26, 24, 20, 0.05);
+  }
+  .on-white .nar-card { background: var(--bg); box-shadow: none; }
+  .nar-card.hl { background: var(--ink); color: #fff; box-shadow: 0 30px 60px -30px rgba(26, 24, 20, 0.45); }
+  .nar-label { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--muted-3); margin-bottom: 20px; }
+  .nar-label span { display: inline-grid; place-items: center; min-width: 26px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--line-soft); color: var(--ink); font-size: 11px; }
+  .on-white .nar-label span { background: #fff; }
+  .hl .nar-label { color: rgba(255, 255, 255, 0.6); }
+  .hl .nar-label span { background: var(--teal); color: #fff; }
+  .nar-title { font-family: var(--font-head); font-weight: 400; font-size: 24px; line-height: 30px; letter-spacing: 0.005em; text-wrap: balance; }
+  .nar-body { font-size: 15px; line-height: 23px; color: var(--muted); }
+  .hl .nar-body { color: rgba(255, 255, 255, 0.78); }
+  .nar-note { font-size: 13px; line-height: 19px; color: var(--muted-3); padding-top: 10px; border-top: 1px solid var(--line-soft); }
+  .hl .nar-note { color: rgba(255, 255, 255, 0.55); border-color: rgba(255, 255, 255, 0.12); }
+  .nar-card :global(.ilink) { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+
+  .nar-draws { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: auto; padding-top: 16px; }
+  .nar-draws span { font-size: 12px; color: var(--muted-3); margin-right: 2px; }
+  .hl .nar-draws span { color: rgba(255, 255, 255, 0.55); }
+  .nar-draws a, .nar-draws em {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-style: normal; font-size: 12px; font-weight: 500;
+    padding: 4px 10px; border-radius: 999px;
+    background: var(--line-soft); color: var(--ink);
+    transition: background-color 0.2s;
+  }
+  .hl .nar-draws a, .hl .nar-draws em { background: rgba(255, 255, 255, 0.12); color: #fff; }
+  .hl .nar-draws a:hover { background: rgba(255, 255, 255, 0.22); }
+
+  .nar-arrow {
+    position: absolute; top: 50%; right: -16px; translate: 50% -50%;
+    z-index: 2; width: 28px; height: 28px; display: grid; place-items: center;
+    border-radius: 999px; background: #fff; color: var(--ink);
+    box-shadow: 0 0 0 1px rgba(26, 24, 20, 0.08), 0 6px 16px -8px rgba(26, 24, 20, 0.3);
+  }
+  .nar-row:not(.flow) .nar-arrow { display: none; }
+
+  @media (max-width: 1099px) {
+    .nar-row.cols-3, .nar-row.cols-4 { grid-template-columns: repeat(2, 1fr); }
+    .nar-arrow { display: none; }
+  }
+  @media (max-width: 809px) {
+    .nar { padding: 72px 0; }
+    .nar-row { margin-top: 32px; gap: 8px; }
+    .nar-row.cols-2, .nar-row.cols-3, .nar-row.cols-4 { grid-template-columns: 1fr; }
+    .nar-card { padding: 22px; }
+    .nar-title { font-size: 21px; line-height: 27px; }
+  }
+</style>

@@ -1,0 +1,19 @@
+---
+// Small inline pieces: status pill, ICP score bar, tooltip. Usage: <Bits pill="Booked" /> etc.
+import Icon from '../Icon.astro';
+interface Props { pill?: string; score?: number | null; tip?: string }
+const { pill, score, tip } = Astro.props;
+
+const tone = (s: string) =>
+  /booked|active|connected|synced|identified|yes|resolved|meeting|captured|complete|engaged/i.test(s) ? 'green'
+  : /new|routed|draft|invited|needs|partial|paused|medium|scale\+/i.test(s) ? 'amber'
+  : /lead|sales|voice/i.test(s) ? 'violet'
+  : /lost|no\b|high|handed off|bounced|failed|flag/i.test(s) ? 'red'
+  : '';
+---
+
+{pill !== undefined && <span class:list={['pill', tone(pill)]}>{pill}</span>}
+{score !== undefined && (score === null
+  ? <span class="muted">-</span>
+  : <span class="score"><span class="score-bar"><span style={`width:${score}%`}></span></span>{score}</span>)}
+{tip && <span class="tip" tabindex="0" role="img" aria-label={tip} data-tip={tip}><Icon name="info" size={14} /></span>}

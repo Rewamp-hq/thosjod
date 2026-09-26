@@ -1,0 +1,45 @@
+---
+import AppShell from '../../layouts/AppShell.astro';
+import AppHeader from '../../components/app/AppHeader.astro';
+import Panel from '../../components/app/Panel.astro';
+import Bits from '../../components/app/Bits.astro';
+import Action from '../../components/app/Action.astro';
+import FormDialog from '../../components/app/FormDialog.astro';
+import { integrations } from '../../data/app/sample';
+---
+
+<AppShell title="Integrations" description="Connect/manage CRM, calendar, and webhook integrations.">
+  <AppHeader title="Integrations" desc="Connect and manage CRM, calendar, and webhook integrations." actions={[{ label: 'Connect New Integration', icon: 'plug', modal: 'dlg-int' }]} />
+
+  <Panel empty="No integrations connected yet." emptyIcon="plug" emptyAction={{ label: 'Connect New Integration', modal: 'dlg-int' }} flush>
+    <div class="tbl-scroll">
+      <table class="atbl" id="t-int" data-filterable>
+        <thead><tr><th>Integration</th><th>Status</th><th>Last Synced</th><th></th></tr></thead>
+        <tbody>
+          {integrations.map((i) => {
+            const connected = i.status === 'Connected';
+            return (
+              <tr>
+                <td><span class="strong">{i.name}</span><br /><span class="muted">{i.kind}</span></td>
+                <td><Bits pill={i.status} /></td>
+                <td class="num">{i.synced}</td>
+                <td style="text-align:right">
+                  {connected ? (
+                    <Action label="Disconnect" variant="ghost" size="sm" confirm={`Disconnect ${i.name}?`} confirmBody={`New leads, transcripts and events will stop syncing to ${i.name}. Records already synced stay in ${i.name}.`} confirmOk="Disconnect" toast={`${i.name} disconnected.`} />
+                  ) : (
+                    <Action label="Connect" size="sm" toast={i.status.includes('Scale') ? `${i.name} is available on Scale and Enterprise plans - upgrade to connect.` : `Connecting ${i.name}…`} />
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  </Panel>
+
+  <FormDialog
+    id="dlg-int" title="Connect new integration" submit="Continue" toast="Continue in the {name} window to finish connecting."
+    fields={[{ name: 'name', label: 'Integration', type: 'select', options: ['HubSpot', 'Salesforce', 'Google Calendar', 'Microsoft Outlook / Office 365', 'Webhooks'] }]}
+  />
+</AppShell>

@@ -1,0 +1,36 @@
+---
+import AppShell from '../../../layouts/AppShell.astro';
+import AppHeader from '../../../components/app/AppHeader.astro';
+import SubNav from '../../../components/app/SubNav.astro';
+import Panel from '../../../components/app/Panel.astro';
+import Bits from '../../../components/app/Bits.astro';
+import { analyticsNav } from '../../../data/app/nav';
+import { sentimentTrend, conversations } from '../../../data/app/sample';
+
+// Line chart geometry (0..1 sentiment on the y axis)
+const W = 600, H = 140, pad = 8;
+const pts = sentimentTrend.map((v, i) => [pad + (i * (W - pad * 2)) / (sentimentTrend.length - 1), H - pad - v * (H - pad * 2)]);
+const line = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+const area = `${line} L${pts[pts.length - 1][0]},${H} L${pts[0][0]},${H} Z`;
+const atRisk = conversations.filter((c) => c.sentiment < 0.5);
+---
+
+<AppShell title="Sentiment Analytics" description="Aggregate sentiment scoring trends over time.">
+  <AppHeader title="Sentiment" desc="Aggregate sentiment scoring trends over time." crumbs={[{ label: 'Analytics', href: '/app/analytics' }]} />
+  <SubNav items={analyticsNav} />
+
+  <Panel title="Sentiment trend" sub="Weekly average, last 8 weeks (0 = negative, 1 = positive)" empty="Not enough conversations yet to show a trend." emptyIcon="chart">
+    <svg class="spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={`Sentiment rose from ${sentimentTrend[0]} to ${sentimentTrend[sentimentTrend.length - 1]}`}>
+      <path d={area} fill="rgba(32,131,116,.12)" />
+      <path d={line} fill="none" stroke="var(--teal)" stroke-width="2.5" vector-effect="non-scaling-stroke" />
+      {pts.map(([x, y]) => <circle cx={x} cy={y} r="3.5" fill="var(--teal)" />)}
+    </svg>
+  </Panel>
+
+  <Panel title="At-risk conversations" sub="Sentiment below 0.5" empty="No at-risk conversations flagged." flush>
+    <table class="atbl">
+      <thead><tr><th>Visitor</th><th>Agent</th><th>Sentiment</th><th>Outcome</th></tr></thead>
+      <tbody>{atRisk.map((c) => <tr><td><a class="row-link" href={`/app/conversations/${c.id}`}>{c.visitor}</a></td><td><Bits pill={c.agent} /></td><td class="num">{c.sentiment.toFixed(2)}</td><td><Bits pill={c.outcome} /></td></tr>)}</tbody>
+    </table>
+  </Panel>
+</AppShell>

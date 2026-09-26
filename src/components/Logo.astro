@@ -1,0 +1,21 @@
+---
+// Crossfades between the white wordmark (on dark) and the original (on light).
+// Parent sets --logo-dark: 0 | 1. Pass variant="dark" to always show the original.
+interface Props { variant?: 'auto' | 'dark'; height?: number }
+const { variant = 'auto', height = 30 } = Astro.props;
+const width = Math.round((height * 1098) / 268);
+---
+
+<span class={`logo ${variant === 'dark' ? 'is-dark' : ''}`} style={`--h:${height}px;--w:${width}px`}>
+  <img class="logo-white" src="/thosjod-white.png" alt="" width={width} height={height} aria-hidden="true" />
+  <img class="logo-color" src="/thosjod.png" alt="Thosjod" width={width} height={height} />
+</span>
+
+<style>
+  .logo { position: relative; display: block; width: var(--w); height: var(--h); }
+  .logo img { position: absolute; inset: 0; width: 100%; height: 100%; transition: opacity 0.35s var(--ease); }
+  .logo-white { opacity: calc(1 - var(--logo-dark, 0)); }
+  .logo-color { opacity: var(--logo-dark, 0); }
+  .logo.is-dark .logo-white { opacity: 0; }
+  .logo.is-dark .logo-color { opacity: 1; }
+</style>

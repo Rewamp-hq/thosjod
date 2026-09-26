@@ -1,0 +1,36 @@
+---
+import AppShell from '../../layouts/AppShell.astro';
+import AppHeader from '../../components/app/AppHeader.astro';
+import Panel from '../../components/app/Panel.astro';
+import Bits from '../../components/app/Bits.astro';
+import { sessions } from '../../data/app/sample';
+---
+
+<AppShell title="Sessions" description="Raw session log across all visitors.">
+  <AppHeader
+    title="Sessions"
+    desc="Raw session log across all visitors, identified or not."
+    crumbs={[{ label: 'Visitors', href: '/app/visitors' }]}
+    actions={[{ label: 'Export CSV', icon: 'download', toast: 'Export started - sessions.csv will download shortly.' }]}
+  />
+
+  <Panel empty="No sessions recorded yet - check your widget installation." emptyIcon="page" emptyAction={{ label: 'View Install Instructions', href: '/app/onboarding' }} flush>
+    <div class="tbl-scroll">
+      <table class="atbl" id="t-sessions" data-filterable>
+        <thead><tr><th>Session ID</th><th>Visitor</th><th>Start Time</th><th>Duration</th><th>Pages</th><th>Outcome</th></tr></thead>
+        <tbody>
+          {sessions.map((s) => (
+            <tr>
+              <td class="muted num">{s.id}</td>
+              <td><a class="row-link" href={`/app/visitor/${s.visitorId}`}>{s.visitor}</a></td>
+              <td class="num">{s.start}</td>
+              <td class="num">{s.duration}</td>
+              <td class="num">{s.pages}</td>
+              <td><Bits pill={s.outcome} /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </Panel>
+</AppShell>

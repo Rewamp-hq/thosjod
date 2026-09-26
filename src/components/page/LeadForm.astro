@@ -1,0 +1,96 @@
+---
+// Generic lead/contact form. Posts to PUBLIC_FORM_ENDPOINT when configured;
+// otherwise shows an honest "not connected yet" message instead of pretending to submit.
+export type Field = {
+  name: string;
+  label: string;
+  type: 'text' | 'email' | 'url' | 'textarea' | 'select';
+  options?: string[];
+  required?: boolean;
+  placeholder?: string;
+};
+interface Props { fields: Field[]; submit: string; formName: string; note?: string }
+const { fields, submit, formName, note } = Astro.props;
+const endpoint = import.meta.env.PUBLIC_FORM_ENDPOINT ?? '';
+---
+
+<form class="lf" method="post" action={endpoint || undefined} data-lead-form data-endpoint={endpoint}>
+  <input type="hidden" name="form" value={formName} />
+  <div class="lf-grid">
+    {fields.map((f) => (
+      <label class:list={['lf-field', { wide: f.type === 'textarea' }]}>
+        <span class="lf-label">{f.label}{!f.required && <em> (optional)</em>}</span>
+        {f.type === 'textarea' ? (
+          <textarea name={f.name} rows="4" required={f.required} placeholder={f.placeholder}></textarea>
+        ) : f.type === 'select' ? (
+          <select name={f.name} required={f.required}>
+            <option value="">Select…</option>
+            {f.options!.map((o) => <option>{o}</option>)}
+          </select>
+        ) : (
+          <input name={f.name} type={f.type} required={f.required} placeholder={f.placeholder} autocomplete={f.type === 'email' ? 'email' : undefined} />
+        )}
+      </label>
+    ))}
+  </div>
+  <div class="lf-foot">
+    <button type="submit" class="btn btn-dark">{submit}</button>
+    {note && <p class="lf-note">{note}</p>}
+  </div>
+  <p class="lf-status" role="status" aria-live="polite" hidden></p>
+</form>
+
+<style>
+  .lf { background: #fff; border-radius: 16px; padding: 32px; box-shadow: 0 0 0 1px rgba(26, 24, 20, 0.05); }
+  .lf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .lf-field { display: flex; flex-direction: column; gap: 6px; }
+  .lf-field.wide { grid-column: 1 / -1; }
+  .lf-label { font-size: 13px; font-weight: 500; color: var(--ink); }
+  .lf-label em { font-style: normal; color: var(--muted-3); font-weight: 400; }
+  .lf input, .lf select, .lf textarea {
+    font: inherit; font-size: 15px; color: var(--ink);
+    padding: 11px 14px; border-radius: 10px; border: 0;
+    background: var(--bg); box-shadow: inset 0 0 0 1px var(--line);
+    transition: box-shadow 0.2s, background-color 0.2s; width: 100%;
+  }
+  .lf textarea { resize: vertical; }
+  .lf input:focus, .lf select:focus, .lf textarea:focus { outline: 0; background: #fff; box-shadow: inset 0 0 0 1.5px var(--ink); }
+  .lf-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; margin-top: 24px; }
+  .lf-note { font-size: 13px; color: var(--muted); }
+  .lf-status { margin-top: 16px; padding: 12px 14px; border-radius: 10px; font-size: 14px; background: color-mix(in srgb, var(--orange) 10%, #fff); color: var(--ink); }
+  @media (max-width: 809px) {
+    .lf { padding: 20px; }
+    .lf-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLFormElement>('[data-lead-form]').forEach((form) => {
+    const status = form.querySelector<HTMLElement>('.lf-status')!;
+    const button = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    const say = (msg: string) => { status.hidden = false; status.textContent = msg; };
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const endpoint = form.dataset.endpoint;
+      if (!endpoint) {
+        say("Thanks - this form isn't connected yet, so nothing was sent. Please try again after launch.");
+        return;
+      }
+      // Real endpoint: submit in the background, then show the confirmation page
+      const label = button.textContent;
+      button.disabled = true;
+      button.textContent = 'Please wait…';
+      try {
+        const res = await fetch(endpoint, { method: 'POST', body: new FormData(form), headers: { Accept: 'application/json' } });
+        if (!res.ok) throw new Error(String(res.status));
+        const name = (form.querySelector<HTMLInputElement>('input[name="form"]')?.value ?? '').replace(/[^a-z0-9-]/gi, '');
+        window.location.href = `/thank-you?form=${encodeURIComponent(name)}`;
+      } catch {
+        say('Something went wrong sending this form. Please try again in a moment.');
+        button.disabled = false;
+        button.textContent = label;
+      }
+    });
+  });
+</script>

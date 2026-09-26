@@ -1,0 +1,41 @@
+---
+// Spec: "Full transcript with sentiment annotations and handoff points." Primary: Flag for Review
+import AppShell from '../../../layouts/AppShell.astro';
+import AppHeader from '../../../components/app/AppHeader.astro';
+import Panel from '../../../components/app/Panel.astro';
+import Bits from '../../../components/app/Bits.astro';
+import Transcript from '../../../components/app/Transcript.astro';
+import { conversations, leads } from '../../../data/app/sample';
+
+export function getStaticPaths() {
+  return conversations.map((c) => ({ params: { id: c.id }, props: { c } }));
+}
+const { c } = Astro.props as { c: (typeof conversations)[number] };
+const lead = leads.find((l) => l.conversationId === c.id);
+const aiMsgs = c.messages.filter((m) => m.from === 'agent');
+const grounded = aiMsgs.filter((m) => m.grounded).length;
+---
+
+<AppShell title={`Conversation ${c.id}`} description="Conversation detail">
+  <AppHeader
+    title={c.visitor}
+    desc={`${c.agent} Agent · ${c.date} · ${c.duration}`}
+    crumbs={[{ label: 'Conversations', href: '/app/conversations' }]}
+    actions={[{ label: 'Flag for Review', icon: 'flag', toast: 'Flagged for review - your team will see it in the review queue.' }]}
+  />
+
+  <div class="grid-main">
+    <Panel title="Transcript">
+      <Transcript messages={c.messages} />
+    </Panel>
+    <Panel title="Summary">
+      <dl class="kv">
+        <div><dt>Outcome</dt><dd><Bits pill={c.outcome} /></dd></div>
+        <div><dt>Sentiment score</dt><dd>{c.sentiment.toFixed(2)}</dd></div>
+        <div><dt>Grounded answers <Bits tip="How many AI messages were restricted to the approved knowledge base." /></dt><dd>{grounded} of {aiMsgs.length}</dd></div>
+        <div><dt>Visitor</dt><dd><a class="linkish" href={`/app/visitor/${c.visitorId}`}>Open profile</a></dd></div>
+        {lead && <div><dt>Lead</dt><dd><a class="linkish" href={`/app/leads/${lead.id}`}>{lead.name}</a></dd></div>}
+      </dl>
+    </Panel>
+  </div>
+</AppShell>

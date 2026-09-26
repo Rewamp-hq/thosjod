@@ -1,0 +1,224 @@
+---
+// Renders every page in thosjod_content/content (except the homepage and the
+// hand-built routes in this folder) plus "coming soon" stubs for planned sections.
+import type { Page as ContentPage, Category } from '../lib/content';
+import { pages, SHOW_GAPS } from '../lib/content';
+import { md, plain } from '../lib/inline';
+import { heroImage } from '../data/pageMedia';
+import Page from '../layouts/Page.astro';
+import ContentSection from '../components/page/ContentSection.astro';
+import Icon from '../components/Icon.astro';
+import { HAND_BUILT, stubs, type Stub } from '../data/stubs';
+import Narrative from '../components/page/Narrative.astro';
+import { plan, relatedLinks, type PlanItem } from '../lib/layoutPlan';
+import type { Section } from '../lib/content';
+import LegalDoc from '../components/page/LegalDoc.astro';
+import { itemList, freeTool, software } from '../lib/schema';
+import { nameForUrl } from '../lib/content';
+
+export function getStaticPaths() {
+  const content = pages
+    .filter((p) => !HAND_BUILT.has(p.url))
+    .map((p) => ({ params: { slug: p.url.slice(1) }, props: { page: p, stub: null } }));
+  const stubPaths = stubs.map((s) => ({ params: { slug: s.url.slice(1) }, props: { page: null, stub: s } }));
+  return [...content, ...stubPaths];
+}
+
+const { page, stub } = Astro.props as { page: ContentPage | null; stub: Stub | null };
+
+// ---------- shared mappings
+const HUBS: Partial<Record<Category, { label: string; href: string }>> = {
+  features: { label: 'Features', href: '/features' },
+  solutions: { label: 'Solutions', href: '/solutions' },
+  industries: { label: 'Industries', href: '/industries' },
+  compare: { label: 'Compare', href: '/compare' },
+  integrations: { label: 'Integrations', href: '/integrations' },
+  'ai-visibility': { label: 'AI Visibility', href: '/ai-visibility' },
+  'geo-aeo': { label: 'GEO/AEO', href: '/geo-aeo' },
+  tools: { label: 'Resources', href: '/resources' },
+  resources: { label: 'Resources', href: '/resources' },
+};
+
+const EMPTY_COPY: Record<string, string> = {
+  '/customers': 'Customer stories are coming soon.',
+  '/partners': 'Partner program details are coming soon - get in touch if you’d like to be among the first.',
+  '/status': 'A live system status page is coming soon.',
+  '/press': 'Press resources are coming soon.',
+  '/careers': 'No open roles right now - but we’re always happy to hear from strong people.',
+  '/subprocessors': 'The sub-processor list will be published here before launch.',
+};
+
+let view: {
+  seoTitle: string; description: string; noindex: boolean; nofollow?: boolean;
+  hero: { title: string; sub?: string; eyebrow?: string; image?: string | null; primary?: { label: string; href: string } | null; secondary?: { label: string; href: string } | null; compact?: boolean };
+  crumbs: { label: string; href: string }[];
+  sections: ContentPage['sections'];
+  faq: { q: string; a: string }[];
+  notices: string[]; footnotes: string[];
+  empty: string | null; legal: boolean; submitLabel: string; formName: string;
+  items: PlanItem[]; related: Section | null;
+  keywords: string[]; pageType: string; aboutProduct: boolean; seoExtra: Record<string, unknown>[];
+};
+
+if (page) {
+  const formSection = page.sections.find((s) => s.blocks.some((b) => b.type === 'kv' && b.items.some((i) => /^(Fields|User Input)$/.test(i.k))));
+  const ctaHref = (label: string): string => {
+    if (formSection && /audit|message|send|run/i.test(label)) return `#${formSection.id}`;
+    if (/talk to sales/i.test(label)) return '/contact';
+    if (/visibility audit/i.test(label)) return '/tools/ai-visibility-audit';
+    if (/explore platform/i.test(label)) return '/platform';
+    if (/explore features/i.test(label)) return '/features';
+    if (/find your industry/i.test(label)) return `#${page.sections[0]?.id ?? ''}`;
+    return '/demo';
+  };
+  const hub = HUBS[page.category];
+  const isHub = hub?.href === page.url;
+  const crumbs = hub && !isHub ? [hub, { label: page.name, href: page.url }] : [{ label: page.name, href: page.url }];
+  const long = page.title.length > 70;
+
+  view = {
+    seoTitle: page.seoTitle,
+    description: plain(page.description),
+    // "coming soon" pages with no content stay out of search until they have substance (matches sitemap.xml)
+    noindex: page.noindex || (page.sections.length === 0 && page.faq.length === 0),
+    nofollow: page.nofollow,
+    hero: {
+      title: page.title,
+      sub: page.sub,
+      eyebrow: page.eyebrow,
+      image: heroImage(page.url, page.category),
+      primary: page.category === 'legal' || page.category === 'company' && !formSection ? null : { label: page.primaryCta, href: ctaHref(page.primaryCta) },
+      secondary: page.secondaryCta ? { label: page.secondaryCta, href: ctaHref(page.secondaryCta) } : null,
+      compact: long || page.category === 'compare',
+    },
+    crumbs,
+    sections: page.category === 'legal'
+      ? page.sections.map((s) => (/^(Sections|Structure)$/i.test(s.eyebrow) ? { ...s, eyebrow: 'Contents', title: 'What this document covers.' } : s))
+      : page.sections,
+    faq: page.faq,
+    notices: SHOW_GAPS ? page.notices : [],
+    footnotes: page.footnotes,
+    empty: page.sections.length === 0 && page.faq.length === 0 ? EMPTY_COPY[page.url] ?? `${page.name} - coming soon.` : null,
+    legal: page.category === 'legal',
+    submitLabel: formSection ? page.primaryCta : 'Submit',
+    formName: page.url.slice(1).replace(/\//g, '-'),
+    items: [],
+    related: null,
+    keywords: [], pageType: 'WebPage', aboutProduct: false, seoExtra: [],
+  };
+  view.items = plan(page, view.sections);
+  const rel = relatedLinks(page, crumbs.map((c) => c.href));
+  view.related = rel.length >= 2
+    ? { id: 'related', eyebrow: 'Related', title: 'Keep exploring.', blocks: [{ type: 'table', head: ['Page', 'Link'], rows: rel.map((r) => [r.title, '`' + r.href + '`']) }] }
+    : null;
+
+  // ---- SEO / structured data
+  const HUB_URLS = new Set(['/features', '/solutions', '/industries', '/compare', '/integrations', '/ai-visibility', '/geo-aeo']);
+  const hubLinks = page.sections.flatMap((s) => s.blocks).flatMap((b) =>
+    b.type === 'table' ? b.rows.map((r) => r[r.length - 1].match(/^`(\/[^`]+)`$/)?.[1]).filter((u): u is string => !!u) : []);
+  view.keywords = page.keywords;
+  view.pageType = page.url === '/about' ? 'AboutPage' : page.url === '/contact' ? 'ContactPage' : HUB_URLS.has(page.url) ? 'CollectionPage' : 'WebPage';
+  view.aboutProduct = !['legal', 'company'].includes(page.category);
+  view.seoExtra = [
+    ...(hubLinks.length ? [itemList(page.url, page.name, hubLinks.map((u) => ({ name: nameForUrl(u) ?? u, url: u })))] : []),
+    ...(page.category === 'tools' ? [freeTool(page.url, page.name, plain(page.description))] : []),
+    ...(['/pricing', '/platform', '/features'].includes(page.url) ? [software()] : []),
+  ];
+} else {
+  const s = stub!;
+  view = {
+    seoTitle: `${s.title} - Thosjod`,
+    description: s.sub,
+    noindex: true,
+    hero: { title: s.title, sub: s.sub },
+    crumbs: [{ label: 'Resources', href: '/resources' }, { label: s.title, href: s.url }],
+    sections: [], faq: [], notices: [], footnotes: [],
+    empty: s.empty, legal: false, submitLabel: 'Submit', formName: 'stub',
+    items: [], related: null,
+    keywords: [], pageType: 'WebPage', aboutProduct: false, seoExtra: [],
+  };
+}
+---
+
+<Page
+  title={view.seoTitle}
+  description={view.description}
+  noindex={view.noindex}
+  nofollow={view.nofollow}
+  hero={view.hero}
+  crumbs={view.crumbs}
+  faq={view.faq}
+  keywords={view.keywords}
+  pageType={view.pageType}
+  aboutProduct={view.aboutProduct}
+  schema={view.seoExtra}
+>
+  {(view.notices.length > 0 || (view.legal && view.noindex)) && (
+    <div class="container notices">
+      {view.legal && view.noindex && (
+        <aside class="notice">
+          <Icon name="shield" size={16} />
+          <p>This document is being finalised and will be published in full before launch. Questions in the meantime? <a href="/contact">Contact us</a>.</p>
+        </aside>
+      )}
+      {view.notices.map((n) => (
+        <aside class="notice dev"><Icon name="spark" size={16} /><p set:html={md(n)} /></aside>
+      ))}
+    </div>
+  )}
+
+  {view.legal && <LegalDoc sections={view.sections} />}
+
+  {!view.legal && view.items.map((it, i) =>
+    it.kind === 'narrative' ? (
+      <Narrative eyebrow={it.eyebrow} title={it.title} items={it.items} flow={it.flow} tone={i % 2 === 0 ? 'on-bg' : 'on-white'} />
+    ) : (
+      <ContentSection section={it.section} index={i} submitLabel={view.submitLabel} formName={view.formName} />
+    ),
+  )}
+
+  {view.empty && (
+    <section class="container empty-wrap">
+      <div class="empty-card reveal">
+        <span class="empty-icon"><Icon name="spark" size={20} /></span>
+        <p class="empty-t">{view.empty}</p>
+        <div class="empty-ctas">
+          <a class="btn btn-dark" href="/demo">Book a Demo</a>
+          <a class="btn btn-ghost" href="/contact">Contact us</a>
+        </div>
+      </div>
+    </section>
+  )}
+
+  {view.related && (
+    <div slot="after"><ContentSection section={view.related} index={0} /></div>
+  )}
+
+  {view.footnotes.length > 0 && (
+    <div slot="after" class="container footnotes">
+      {view.footnotes.map((f) => <p set:html={md(f)} />)}
+    </div>
+  )}
+</Page>
+
+<style>
+  .notices { display: grid; gap: 8px; padding-top: 40px; }
+  .notice { display: flex; gap: 12px; align-items: flex-start; padding: 16px 18px; border-radius: 12px; background: #fff; font-size: 14px; line-height: 20px; color: var(--muted); box-shadow: 0 0 0 1px rgba(26,24,20,.06); }
+  .notice :global(svg) { flex-shrink: 0; margin-top: 2px; color: var(--teal); }
+  .notice a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+  .notice.dev { background: #fff7ea; box-shadow: inset 0 0 0 1px #f4c27f; color: #6b4a1f; }
+  .notice.dev :global(svg) { color: #c77a1a; }
+
+  .empty-wrap { padding-top: 40px; padding-bottom: 80px; }
+  .empty-card { display: flex; flex-direction: column; align-items: flex-start; gap: 20px; padding: 48px; border-radius: 24px; background: #fff; box-shadow: 0 0 0 1px rgba(26,24,20,.05); }
+  .empty-icon { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; color: var(--violet); background: color-mix(in srgb, var(--violet) 10%, #fff); }
+  .empty-t { font-family: var(--font-head); font-size: 28px; line-height: 36px; max-width: 640px; }
+  .empty-ctas { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .footnotes { padding: 0 var(--gutter) 40px; }
+  .footnotes p { max-width: 900px; font-size: 13px; line-height: 20px; color: var(--muted); padding: 16px 18px; border-radius: 12px; background: #fff; box-shadow: 0 0 0 1px rgba(26,24,20,.05); }
+  @media (max-width: 809px) {
+    .empty-card { padding: 28px; }
+    .empty-t { font-size: 22px; line-height: 30px; }
+  }
+</style>

@@ -1,0 +1,35 @@
+---
+// Transcript with the spec's "grounded-response indicator shown per AI message", sentiment
+// annotations and handoff points (application-ia-ux-copy.md: /app/conversations/[id]).
+import type { Msg } from '../../data/app/sample';
+import Icon from '../Icon.astro';
+import Bits from './Bits.astro';
+
+interface Props { messages: Msg[] }
+const { messages } = Astro.props;
+const GROUNDED = 'Grounded: this answer was restricted to your approved knowledge base, not a fallback guess.';
+const UNGROUNDED = 'Not grounded: no approved source covered this, so the agent handed off instead of guessing.';
+---
+
+<div class="chatlog">
+  {messages.map((m, i) => {
+    if (m.from === 'system') return <p class="csys">{m.text}</p>;
+    const handoff = m.from === 'human' && messages[i - 1]?.from !== 'human';
+    return (
+      <>
+        {handoff && <p class="handoff">Handed off to a human</p>}
+        <div class:list={['cmsg', m.from]}>
+          <div class="cmsg-bubble">{m.text}</div>
+          <div class="cmsg-meta">
+            {m.from === 'visitor' && 'Visitor'}
+            {m.from === 'human' && 'Team member'}
+            {m.from === 'agent' && 'AI agent'}
+            {m.from === 'agent' && m.grounded === true && (<><span class="pill green">Grounded</span><Bits tip={GROUNDED} />{m.source && <span>· {m.source}</span>}</>)}
+            {m.from === 'agent' && m.grounded === false && (<><span class="pill amber">Handed off</span><Bits tip={UNGROUNDED} /></>)}
+            {m.sentiment && <span>· sentiment: {m.sentiment}</span>}
+          </div>
+        </div>
+      </>
+    );
+  })}
+</div>

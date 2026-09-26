@@ -1,0 +1,467 @@
+---
+import type { Block, Section } from '../../lib/content';
+import { isKnownUrl } from '../../lib/content';
+import { md } from '../../lib/inline';
+import { parseFields } from '../../lib/fields';
+import { cardImage } from '../../data/pageMedia';
+import Eyebrow from '../Eyebrow.astro';
+import Icon from '../Icon.astro';
+import LeadForm from './LeadForm.astro';
+import { featureHref } from '../../lib/featureLinks';
+import { sentence, finish, cap } from '../../lib/text';
+const noLinks = (html: string) => html.replace(/<\/?a\b[^>]*>/g, '');
+
+interface Props { section: Section; index: number; submitLabel?: string; formName?: string }
+const { section, index, submitLabel = 'Submit', formName = 'lead' } = Astro.props;
+
+// ---------- helpers
+const boldLead = (s: string) => {
+  const m = s.match(/^\*\*(.+?)\*\*\s*[-–:-]?\s*(.*)$/);
+  return m ? { title: m[1], body: m[2] } : null;
+};
+const trailingLink = (s: string) => {
+  const m = s.match(/\s*[(-–-]*\s*\(?`(\/[^`]+)`\)?\.?\s*$/);
+  return m && isKnownUrl(m[1]) ? { href: m[1], rest: s.slice(0, m.index).replace(/[\s-–-]+$/, '') } : null;
+};
+const linkCell = (c: string) => c.match(/^`(\/[^`]+)`$/)?.[1];
+
+const INDUSTRY_KEYS: [string, RegExp][] = [
+  ['/industries/edtech', /edtech/i],
+  ['/industries/saas', /saas|tech\b/i],
+  ['/industries/smb', /smb|traditional/i],
+  ['/industries/ecommerce', /e-?commerce|d2c/i],
+  ['/industries/education', /universit|higher/i],
+  ['/industries/government', /government|psu/i],
+  ['/industries/bfsi', /bfsi|bank|nbfc|insurance/i],
+  ['/industries/healthcare', /health|hospital/i],
+  ['/industries/real-estate', /real estate/i],
+  ['/industries/travel-hospitality', /travel|hospitality/i],
+  ['/industries/legal-professional-services', /legal|professional/i],
+  ['/industries/manufacturing', /manufactur|industrial/i],
+  ['/industries/media-publishing', /media|publishing/i],
+  ['/industries/telecom', /telecom/i],
+];
+const industryHref = (s: string) => INDUSTRY_KEYS.find(([, re]) => re.test(s))?.[0];
+
+type Kind =
+  | { k: 'p'; b: Extract<Block, { type: 'p' }> }
+  | { k: 'quote'; b: Extract<Block, { type: 'quote' }> }
+  | { k: 'cards'; items: { title: string; body: string; href?: string }[] }
+  | { k: 'chips'; items: { label: string; href?: string }[] }
+  | { k: 'checks'; items: string[] }
+  | { k: 'steps'; items: { title?: string; body: string }[] }
+  | { k: 'compare'; head: string[]; rows: string[][] }
+  | { k: 'linkcards'; items: { n?: string; title: string; desc: string; href: string; image?: string | null }[] }
+  | { k: 'featcards'; head: string[]; rows: string[][] }
+  | { k: 'table'; head: string[]; rows: string[][] }
+  | { k: 'form'; spec: string; steps: { k: string; v: string }[] }
+  | { k: 'empty'; text: string }
+  | { k: 'dl'; items: { k: string; v: string }[] }
+  | { k: 'tiers'; items: { name: string; parts: string[] }[] }
+  | { k: 'journey'; steps: string[] };
+
+const builtFor = /built for|who this|relevant/i.test(section.eyebrow + section.title);
+const keyFeatures = /key features|features to emphasi/i.test(section.eyebrow);
+
+const kinds: Kind[] = section.blocks.map((b): Kind => {
+  switch (b.type) {
+    case 'p': return { k: 'p', b };
+    case 'quote': return { k: 'quote', b };
+    case 'journey': return { k: 'journey', steps: b.steps };
+    case 'tiers': return { k: 'tiers', items: b.items };
+    case 'ul': {
+      const leads = b.items.map(boldLead);
+      if (leads.filter(Boolean).length >= Math.ceil(b.items.length / 2)) {
+        return {
+          k: 'cards',
+          items: b.items.map((it, i) => {
+            const l = leads[i] ?? { title: '', body: it };
+            const tl = trailingLink(l.body);
+            return { title: l.title, body: cap(tl ? tl.rest : l.body), href: tl?.href };
+          }),
+        };
+      }
+      if (builtFor) return { k: 'chips', items: b.items.map((s) => ({ label: s, href: industryHref(s) })) };
+      if (keyFeatures || b.items.every((s) => s.length < 70)) {
+        return { k: 'chips', items: b.items.map((s) => ({ label: cap(s), href: keyFeatures ? featureHref(s) : undefined })) };
+      }
+      return { k: 'checks', items: b.items };
+    }
+    case 'ol':
+      return {
+        k: 'steps',
+        items: b.items.map((s) => {
+          const l = boldLead(s);
+          if (l) return { title: l.title, body: cap(l.body) };
+          const m = s.match(/^([^-–]{3,60})\s+[-–]\s+(.+)$/);
+          return m ? { title: m[1], body: cap(m[2]) } : { body: s };
+        }),
+      };
+    case 'table': {
+      if (b.head[1]?.toLowerCase() === 'thosjod') {
+        const keepCols = b.head.map((h, i) => (h.toLowerCase() === 'source' ? -1 : i)).filter((i) => i >= 0);
+        return { k: 'compare', head: keepCols.map((i) => b.head[i]), rows: b.rows.map((r) => keepCols.map((i) => r[i] ?? '')) };
+      }
+      const last = b.head.length - 1;
+      if (b.rows.length && b.rows.every((r) => linkCell(r[last]))) {
+        return {
+          k: 'linkcards',
+          items: b.rows.map((r) => {
+            const numeric = /^\d+$/.test(r[0]);
+            const cols = r.slice(numeric ? 1 : 0, last);
+            const href = linkCell(r[last])!;
+            return { n: numeric ? r[0].padStart(2, '0') : undefined, title: cols[0], desc: cols.slice(1).join(' '), href, image: cardImage(href) };
+          }),
+        };
+      }
+      if (/feature/i.test(b.head[0]) && b.head.length === 3) return { k: 'featcards', head: b.head, rows: b.rows };
+      return { k: 'table', head: b.head, rows: b.rows };
+    }
+    case 'kv': {
+      const form = b.items.find((i) => /^(Fields|User Input)$/.test(i.k));
+      if (form) return { k: 'form', spec: form.v, steps: b.items.filter((i) => i !== form) };
+      const empty = b.items.find((i) => /^Empty state$/i.test(i.k));
+      if (empty) return { k: 'empty', text: empty.v.replace(/^["“]|["”]$/g, '') };
+      return { k: 'dl', items: b.items };
+    }
+  }
+});
+
+const wide = kinds.some((x) => ['cards', 'compare', 'linkcards', 'featcards', 'table', 'form', 'tiers', 'journey', 'steps'].includes(x.k));
+// Primefold-style headings: sentence case, ending with a period.
+const heading = finish(section.title || sentence(section.eyebrow));
+const eyebrow = section.title ? section.eyebrow : '';
+const tone = index % 2 === 0 ? 'on-bg' : 'on-white';
+
+const compareCell = (c: string) => {
+  if (/^yes/i.test(c)) {
+    const raw = c.match(/\(([^)]+)\)/)?.[1];
+    const note = raw && /62-feature/i.test(raw) ? 'product documentation' : raw;
+    return `<span class="cmp-yes"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8.5l3.25 3L13 4.75" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Yes</span>${note ? `<span class="cmp-note">${note}</span>` : ''}`;
+  }
+  if (/not identified/i.test(c)) return '<span class="cmp-na">Not identified in source</span>';
+  return md(c);
+};
+---
+
+<section id={section.id} class:list={['cs', tone, wide ? 'is-wide' : 'is-split']}>
+  <div class="container cs-grid">
+    <div class="cs-head reveal">
+      {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
+      <h2 class="h2 cs-title">{heading}</h2>
+    </div>
+
+    <div class="cs-body">
+      {kinds.map((x) => {
+        if (x.k === 'p') return <p class="cs-p reveal" set:html={md(x.b.text)} />;
+        if (x.k === 'quote') return <aside class="cs-note reveal"><Icon name="spark" size={14} /><p set:html={md(x.b.text)} /></aside>;
+        if (x.k === 'journey')
+          return (
+            <ol class="journey reveal">
+              {x.steps.map((s, i) => (
+                <li><span class="j-n">{String(i + 1).padStart(2, '0')}</span>{s}</li>
+              ))}
+            </ol>
+          );
+        if (x.k === 'cards')
+          return (
+            <ul class:list={['cards', x.items.length % 3 === 0 || x.items.length > 4 ? 'c3' : 'c2']}>
+              {x.items.map((c, i) => {
+                const inner = (
+                  <>
+                    <span class="card-n">{String(i + 1).padStart(2, '0')}</span>
+                    <div>
+                      {c.title && <h3 class="card-title" set:html={c.href ? noLinks(md(c.title)) : md(c.title)} />}
+                      {c.body && <p class="body-sm" set:html={c.href ? noLinks(md(c.body)) : md(c.body)} />}
+                    </div>
+                    {c.href && <span class="card-go"><Icon name="arrow-up-right" size={16} /></span>}
+                  </>
+                );
+                return <li class="reveal">{c.href ? <a class="card is-link" href={c.href}>{inner}</a> : <div class="card">{inner}</div>}</li>;
+              })}
+            </ul>
+          );
+        if (x.k === 'chips')
+          return (
+            <ul class="chips reveal">
+              {x.items.map((c) =>
+                c.href ? (
+                  <li><a class="chip is-link" href={c.href}><span set:html={md(c.label)} /><Icon name="arrow-right" size={13} /></a></li>
+                ) : (
+                  <li><span class="chip"><Icon name="check" size={13} /><span set:html={md(c.label)} /></span></li>
+                ),
+              )}
+            </ul>
+          );
+        if (x.k === 'checks')
+          return (
+            <ul class="checks reveal">
+              {x.items.map((c) => <li><span class="ck"><Icon name="check" size={13} /></span><span set:html={md(c)} /></li>)}
+            </ul>
+          );
+        if (x.k === 'steps')
+          return (
+            <ol class="steps">
+              {x.items.map((s, i) => (
+                <li class="reveal">
+                  <span class="st-n">{String(i + 1).padStart(2, '0')}</span>
+                  <div>
+                    {s.title && <p class="st-t" set:html={md(s.title)} />}
+                    <p class="body-sm" set:html={md(s.body)} />
+                  </div>
+                </li>
+              ))}
+            </ol>
+          );
+        if (x.k === 'compare')
+          return (
+            <div class="reveal">
+              <div class="tbl-wrap">
+                <table class="tbl cmp">
+                  <thead><tr>{x.head.map((h, i) => <th class:list={{ us: i === 1 }} scope="col">{h}</th>)}</tr></thead>
+                  <tbody>
+                    {x.rows.map((r) => (
+                      <tr>{r.map((c, i) => i === 0 ? <th scope="row">{c}</th> : <td class:list={{ us: i === 1 }} set:html={compareCell(c)} />)}</tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p class="cmp-legend"><span class="cmp-yes">Yes</span> means the capability is stated in that product's own documentation or public description. <span class="cmp-na">Not identified in source</span> means it wasn't found in the material reviewed - not that it is confirmed absent.</p>
+            </div>
+          );
+        if (x.k === 'linkcards')
+          return (
+            <ul class:list={['lcards', { 'with-img': x.items.some((i) => i.image) }]}>
+              {x.items.map((c) => (
+                <li class="reveal">
+                  <a class="lcard" href={c.href}>
+                    {c.image && <span class="lc-img"><img src={c.image} alt="" loading="lazy" /></span>}
+                    <span class="lc-body">
+                      {c.n && <span class="card-n">{c.n}</span>}
+                      <span class="lc-title">{c.title}</span>
+                      {c.desc && <span class="body-sm" set:html={noLinks(md(c.desc))} />}
+                    </span>
+                    <span class="card-go"><Icon name="arrow-up-right" size={16} /></span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          );
+        if (x.k === 'featcards')
+          return (
+            <ul class="fcards">
+              {x.rows.map((r) => (
+                <li class="fcard reveal">
+                  <h3 class="card-title" set:html={md(r[0])} />
+                  <div class="fc-row"><span class="fc-k">How it works</span><p set:html={md(r[1])} /></div>
+                  <div class="fc-row"><span class="fc-k">Why it matters</span><p set:html={md(r[2])} /></div>
+                </li>
+              ))}
+            </ul>
+          );
+        if (x.k === 'table')
+          return (
+            <div class="tbl-wrap reveal">
+              <table class="tbl">
+                <thead><tr>{x.head.map((h) => <th scope="col" set:html={md(h)} />)}</tr></thead>
+                <tbody>{x.rows.map((r) => <tr>{r.map((c, i) => i === 0 ? <th scope="row" set:html={md(c)} /> : <td set:html={md(c)} />)}</tr>)}</tbody>
+              </table>
+            </div>
+          );
+        if (x.k === 'tiers')
+          return (
+            <ul class="tiers">
+              {x.items.map((t) => {
+                const custom = /custom/i.test(t.parts[0]);
+                const price = custom ? t.parts[0] : t.parts.find((p) => /\/mo/.test(p)) ?? '';
+                const setup = custom ? '' : t.parts.find((p) => /^setup/i.test(p)) ?? '';
+                const credits = t.parts.find((p) => /credits/i.test(p)) ?? '';
+                const rest = t.parts.filter((p) => ![price, setup, credits].includes(p));
+                const ent = /enterprise/i.test(t.name);
+                return (
+                  <li class:list={['tier reveal', { dark: ent }]}>
+                    <p class="tier-name">{t.name}</p>
+                    <p class="tier-price">{price.replace('/mo', '')}{!custom && <span>/mo</span>}</p>
+                    <p class="tier-meta">{[setup, credits].filter(Boolean).join(' · ') || 'Tailored to your organisation'}</p>
+                    <a class:list={['btn', ent ? 'btn-white' : 'btn-dark']} href={ent ? '/contact' : '/demo'}>{ent ? 'Talk to Sales' : 'Get Started'}</a>
+                    <ul class="tier-list">{rest.map((r) => <li><Icon name="check" size={13} /><span set:html={md(r)} /></li>)}</ul>
+                  </li>
+                );
+              })}
+            </ul>
+          );
+        if (x.k === 'form')
+          return (
+            <div class="form-wrap reveal">
+              <LeadForm fields={parseFields(x.spec, { needEmail: true })} submit={submitLabel} formName={formName} />
+              {x.steps.length > 0 && (
+                <ol class="steps compact">
+                  {x.steps.map((s, i) => (
+                    <li>
+                      <span class="st-n">{String(i + 1).padStart(2, '0')}</span>
+                      <div><p class="st-t">{s.k}</p><p class="body-sm" set:html={md(s.v)} /></div>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          );
+        if (x.k === 'empty')
+          return <div class="empty reveal"><Icon name="spark" size={18} /><p set:html={md(x.text)} /></div>;
+        if (x.k === 'dl')
+          return (
+            <dl class="dl reveal">
+              {x.items.map((d) => <div><dt>{d.k}</dt><dd set:html={md(d.v)} /></div>)}
+            </dl>
+          );
+      })}
+    </div>
+  </div>
+</section>
+
+<style>
+  .cs { padding: 104px 0; }
+  .cs.on-white { background: #fff; }
+  .cs-grid { display: grid; gap: 56px; }
+  .is-split .cs-grid { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); align-items: start; }
+  .is-split .cs-head { position: sticky; top: 112px; }
+  .cs-head { display: flex; flex-direction: column; gap: 16px; max-width: 720px; }
+  .cs-title { text-wrap: balance; }
+  .cs-body { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+  .cs-p { font-size: 18px; line-height: 28px; color: var(--ink-3); max-width: 760px; }
+  .is-wide .cs-p { max-width: 760px; }
+
+  .cs-note { display: flex; gap: 10px; align-items: flex-start; padding: 16px 18px; border-radius: 12px; background: var(--line-soft); font-size: 14px; line-height: 20px; color: var(--muted); max-width: 820px; }
+  .on-white .cs-note { background: var(--bg); }
+  .cs-note :global(svg) { flex-shrink: 0; margin-top: 3px; color: var(--violet); }
+
+  /* cards */
+  .cards { display: grid; gap: 8px; }
+  .cards.c2 { grid-template-columns: repeat(2, 1fr); }
+  .cards.c3 { grid-template-columns: repeat(3, 1fr); }
+  .card { position: relative; height: 100%; display: flex; flex-direction: column; justify-content: space-between; gap: 32px; padding: 24px; border-radius: 16px; background: #fff; box-shadow: 0 0 0 1px rgba(26,24,20,.05); transition: transform .35s var(--ease), box-shadow .35s var(--ease); }
+  .on-white .card { background: var(--bg); box-shadow: none; }
+  .card .card-title { margin-bottom: 6px; }
+  .card.is-link:hover { transform: translateY(-3px); box-shadow: 0 20px 40px -24px rgba(26,24,20,.3); }
+  .card-n { font-size: 13px; font-weight: 500; color: var(--muted-3); }
+  .card-go { position: absolute; top: 20px; right: 20px; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 999px; background: var(--ink); color: #fff; transition: transform .3s var(--ease); }
+  .is-link:hover .card-go, .lcard:hover .card-go { transform: rotate(45deg); }
+
+  /* chips */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px; background: #fff; font-size: 15px; font-weight: 500; box-shadow: 0 0 0 1px rgba(26,24,20,.07); transition: background-color .2s; }
+  .on-white .chip { background: var(--bg); box-shadow: none; }
+  .chip :global(svg) { color: var(--teal); }
+  .chip.is-link:hover { background: var(--ink); color: #fff; }
+  .chip.is-link:hover :global(svg) { color: #fff; }
+
+  /* checks */
+  .checks { display: grid; gap: 14px; }
+  .checks li { display: flex; gap: 12px; font-size: 16px; line-height: 24px; color: var(--ink-3); }
+  .ck { flex-shrink: 0; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 999px; color: var(--teal); background: color-mix(in srgb, var(--teal) 12%, #fff); }
+
+  /* steps */
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+  .steps li { display: flex; flex-direction: column; gap: 24px; padding: 24px; border-radius: 16px; background: #fff; box-shadow: 0 0 0 1px rgba(26,24,20,.05); }
+  .on-white .steps li { background: var(--bg); box-shadow: none; }
+  .st-n { font-size: 13px; font-weight: 500; color: var(--muted-3); }
+  .st-t { font-size: 16px; font-weight: 500; line-height: 24px; margin-bottom: 4px; }
+  .steps.compact { grid-template-columns: 1fr; }
+  .steps.compact li { flex-direction: row; gap: 16px; padding: 18px 20px; }
+
+  /* journey */
+  .journey { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; counter-reset: j; }
+  .journey li { position: relative; display: inline-flex; align-items: center; gap: 10px; padding: 12px 18px 12px 12px; border-radius: 999px; background: #fff; font-size: 15px; font-weight: 500; box-shadow: 0 0 0 1px rgba(26,24,20,.07); }
+  .journey li:not(:last-child)::after { content: ''; position: absolute; right: -8px; top: 50%; width: 8px; height: 1px; background: var(--line); }
+  .j-n { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 999px; background: var(--ink); color: #fff; font-size: 11px; }
+
+  /* tables */
+  .tbl-wrap { overflow-x: auto; border-radius: 16px; background: #fff; box-shadow: 0 0 0 1px rgba(26,24,20,.06); }
+  .on-white .tbl-wrap { box-shadow: 0 0 0 1px var(--line); }
+  .tbl { width: 100%; border-collapse: collapse; font-size: 14px; line-height: 20px; }
+  .tbl th, .tbl td { padding: 14px 18px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line-soft); }
+  .tbl thead th { font-size: 13px; font-weight: 500; color: var(--muted-3); background: var(--bg); white-space: nowrap; position: sticky; top: 0; }
+  .tbl tbody th { font-weight: 500; color: var(--ink); }
+  .tbl td { color: var(--muted); }
+  .tbl tr:last-child th, .tbl tr:last-child td { border-bottom: 0; }
+  .cmp { min-width: 640px; }
+  .cmp thead th.us, .cmp td.us { background: color-mix(in srgb, var(--teal) 7%, #fff); }
+  .cmp tbody th { white-space: nowrap; }
+  /* keep the capability column in view when a wide cluster table scrolls sideways */
+  .cmp tbody th, .cmp thead th:first-child { position: sticky; left: 0; z-index: 1; background: #fff; box-shadow: 1px 0 0 var(--line-soft); }
+  .cmp thead th:first-child { background: var(--bg); z-index: 2; }
+  .cmp td { min-width: 120px; }
+  .cmp :global(.cmp-yes) { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; color: var(--teal); }
+  .cmp :global(.cmp-note) { display: block; font-size: 11px; color: var(--muted-3); margin-top: 2px; }
+  .cmp :global(.cmp-na), .cmp-legend .cmp-na { color: rgba(26, 24, 20, 0.4); font-size: 13px; }
+  .cmp-legend { margin-top: 12px; font-size: 13px; line-height: 20px; color: var(--muted); max-width: 820px; }
+  .cmp-legend .cmp-yes { font-weight: 500; color: var(--teal); }
+
+  /* link cards */
+  .lcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }
+  .lcard { position: relative; display: flex; flex-direction: column; height: 100%; border-radius: 16px; background: #fff; box-shadow: 0 0 0 1px rgba(26,24,20,.05); overflow: hidden; transition: transform .35s var(--ease), box-shadow .35s var(--ease); }
+  .on-white .lcard { background: var(--bg); box-shadow: none; }
+  .lcard:hover { transform: translateY(-3px); box-shadow: 0 20px 40px -24px rgba(26,24,20,.3); }
+  .lc-img { display: block; height: 180px; overflow: hidden; background: var(--ink); }
+  .lc-img img { width: 100%; height: 100%; object-fit: cover; transition: transform .8s var(--ease); }
+  .lcard:hover .lc-img img { transform: scale(1.05); }
+  .lc-body { display: flex; flex-direction: column; gap: 8px; padding: 22px 64px 24px 24px; }
+  .lc-title { font-family: var(--font-head); font-size: 20px; line-height: 28px; color: var(--ink); }
+  .with-img .card-go { top: 196px; }
+
+  /* feature cards */
+  .fcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 8px; }
+  .fcard { display: flex; flex-direction: column; gap: 16px; padding: 28px; border-radius: 16px; background: #fff; box-shadow: 0 0 0 1px rgba(26,24,20,.05); }
+  .on-white .fcard { background: var(--bg); box-shadow: none; }
+  .fc-row { display: grid; gap: 4px; font-size: 14px; line-height: 20px; color: var(--muted); }
+  .fc-k { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .04em; color: var(--muted-3); }
+
+  /* pricing tiers */
+  .tiers { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; align-items: stretch; }
+  .tier { display: flex; flex-direction: column; gap: 12px; padding: 28px 24px; border-radius: 16px; background: #fff; box-shadow: 0 0 0 1px rgba(26,24,20,.06); }
+  .tier.dark { background: var(--ink); color: #fff; }
+  .tier-name { font-size: 16px; font-weight: 500; }
+  .tier-price { font-family: var(--font-head); font-size: 36px; line-height: 44px; letter-spacing: .01em; }
+  .tier-price span { font-family: var(--font-body); font-size: 15px; color: var(--muted); margin-left: 2px; }
+  .tier.dark .tier-price { font-size: 26px; line-height: 44px; }
+  .tier-meta { font-size: 13px; color: var(--muted); min-height: 40px; }
+  .tier.dark .tier-meta, .tier.dark .tier-list li { color: rgba(255,255,255,.75); }
+  .tier .btn { margin: 4px 0 12px; }
+  .tier-list { display: grid; gap: 10px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
+  .tier.dark .tier-list { border-color: rgba(255,255,255,.12); }
+  .tier-list li { display: flex; gap: 8px; font-size: 14px; line-height: 20px; color: var(--muted); }
+  .tier-list :global(svg) { flex-shrink: 0; margin-top: 3px; color: var(--teal); }
+  .tier.dark .tier-list :global(svg) { color: var(--teal-bright); }
+
+  /* forms, empty, dl */
+  .form-wrap { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 16px; align-items: start; }
+  .form-wrap:not(:has(.steps)) { grid-template-columns: minmax(0, 760px); }
+  .empty { display: flex; align-items: center; gap: 14px; padding: 28px; border-radius: 16px; background: #fff; font-size: 16px; line-height: 24px; color: var(--ink-3); box-shadow: 0 0 0 1px rgba(26,24,20,.05); }
+  .empty :global(svg) { color: var(--violet); flex-shrink: 0; }
+  .dl { display: grid; gap: 0; margin: 0; border-radius: 16px; background: #fff; box-shadow: 0 0 0 1px rgba(26,24,20,.05); overflow: hidden; }
+  .on-white .dl { background: var(--bg); box-shadow: none; }
+  .dl div { display: grid; grid-template-columns: 180px 1fr; gap: 16px; padding: 16px 20px; border-bottom: 1px solid var(--line-soft); }
+  .dl div:last-child { border-bottom: 0; }
+  .dl dt { font-size: 13px; font-weight: 500; color: var(--muted-3); }
+  .dl dd { margin: 0; font-size: 15px; line-height: 22px; color: var(--ink-3); }
+
+  .cs :global(.ilink) { color: var(--ink); text-decoration: underline; text-decoration-color: rgba(26,24,20,.3); text-underline-offset: 3px; transition: text-decoration-color .2s; }
+  .cs :global(.ilink:hover) { text-decoration-color: var(--ink); }
+
+  @media (max-width: 1099px) {
+    .is-split .cs-grid { grid-template-columns: 1fr; gap: 32px; }
+    .is-split .cs-head { position: static; }
+    .cards.c3 { grid-template-columns: repeat(2, 1fr); }
+    .tiers { grid-template-columns: repeat(2, 1fr); }
+    .form-wrap { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 809px) {
+    .cs { padding: 72px 0; }
+    .cs-grid { gap: 32px; }
+    .cs-p { font-size: 16px; line-height: 24px; }
+    .cards.c2, .cards.c3, .tiers { grid-template-columns: 1fr; }
+    .fcards { grid-template-columns: 1fr; }
+    .dl div { grid-template-columns: 1fr; gap: 4px; }
+    .journey li { font-size: 14px; }
+  }
+</style>
