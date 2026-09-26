@@ -20,8 +20,10 @@ const boldLead = (s: string) => {
   return m ? { title: m[1], body: m[2] } : null;
 };
 const trailingLink = (s: string) => {
-  const m = s.match(/\s*[(-–-]*\s*\(?`(\/[^`]+)`\)?\.?\s*$/);
-  return m && isKnownUrl(m[1]) ? { href: m[1], rest: s.slice(0, m.index).replace(/[\s-–-]+$/, '') } : null;
+  // Trailing "(`/path`)" or "- `/path`" becomes the card's link. Dashes are escaped (– en, — em)
+  // so the classes can never turn into accidental character ranges.
+  const m = s.match(/\s*[(—–\-]*\s*\(?`(\/[^`]+)`\)?\.?\s*$/);
+  return m && isKnownUrl(m[1]) ? { href: m[1], rest: s.slice(0, m.index).replace(/[\s—–\-]+$/, '') } : null;
 };
 const linkCell = (c: string) => c.match(/^`(\/[^`]+)`$/)?.[1];
 

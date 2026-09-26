@@ -18,8 +18,12 @@ const PILLAR_URLS = [
 
 const GAP_TAG = '<span class="gap" title="Needs founder input before launch">Needs input</span>';
 
+const STATIC_FILE = /\.(png|jpe?g|svg|ico|pdf|txt|xml|zip)$/i;
+
 const link = (url: string, label?: string) => {
-  const clean = url.replace(/[.,;:]+$/, '');
+  const clean = url.replace(/(?<!\.(?:png|jpe?g|svg|ico|pdf|txt|xml|zip))[.,;:]+$/i, '').replace(/[,;:]+$/, '');
+  // Static files in public/ (logos, press kit, llms.txt) link as downloads, labelled by filename
+  if (STATIC_FILE.test(clean)) return `<a class="ilink" href="${clean}">${esc(label ?? clean.split('/').pop()!)}</a>`;
   if (!isKnownUrl(clean)) return esc(label ?? prettyPath(clean));
   return `<a class="ilink" href="${clean}">${esc(label ?? nameForUrl(clean) ?? prettyPath(clean))}</a>`;
 };

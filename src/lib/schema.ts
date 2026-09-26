@@ -123,3 +123,30 @@ export const freeTool = (url: string, name: string, description: string): Node =
   offers: { '@type': 'Offer', price: 0, priceCurrency: 'INR' },
   provider: { '@id': ids.org },
 });
+
+/** Glossary: each "**Term** - definition" bullet becomes a DefinedTerm AI engines can cite. */
+export const definedTermSet = (url: string, name: string, terms: { term: string; definition: string }[]): Node => ({
+  '@type': 'DefinedTermSet',
+  '@id': `${abs(url)}#terms`,
+  name,
+  hasDefinedTerm: terms.map((t) => ({
+    '@type': 'DefinedTerm',
+    name: t.term,
+    description: t.definition,
+    inDefinedTermSet: { '@id': `${abs(url)}#terms` },
+  })),
+});
+
+export const article = (opts: { url: string; headline: string; description: string; modified: string; image?: string | null }): Node => ({
+  '@type': 'Article',
+  '@id': `${abs(opts.url)}#article`,
+  headline: opts.headline,
+  description: opts.description,
+  url: abs(opts.url),
+  dateModified: opts.modified,
+  author: { '@id': ids.org },
+  publisher: { '@id': ids.org },
+  mainEntityOfPage: { '@id': ids.page(opts.url) },
+  ...(opts.image ? { image: opts.image } : {}),
+  inLanguage: 'en',
+});

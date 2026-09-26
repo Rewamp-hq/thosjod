@@ -13,7 +13,7 @@ import Narrative from '../components/page/Narrative.astro';
 import { plan, relatedLinks, type PlanItem } from '../lib/layoutPlan';
 import type { Section } from '../lib/content';
 import LegalDoc from '../components/page/LegalDoc.astro';
-import { itemList, freeTool, software } from '../lib/schema';
+import { itemList, freeTool, software, definedTermSet, article } from '../lib/schema';
 import { nameForUrl } from '../lib/content';
 
 export function getStaticPaths() {
@@ -66,6 +66,10 @@ if (page) {
     if (formSection && /audit|message|send|run/i.test(label)) return `#${formSection.id}`;
     if (/talk to sales/i.test(label)) return '/contact';
     if (/visibility audit/i.test(label)) return '/tools/ai-visibility-audit';
+    if (/geo\/aeo audit/i.test(label)) return '/tools/geo-aeo-audit';
+    if (/contact (support|us)/i.test(label)) return '/contact';
+    if (/read the docs/i.test(label)) return '/docs';
+    if (/help center/i.test(label)) return '/help';
     if (/explore platform/i.test(label)) return '/platform';
     if (/explore features/i.test(label)) return '/features';
     if (/find your industry/i.test(label)) return `#${page.sections[0]?.id ?? ''}`;
@@ -123,6 +127,15 @@ if (page) {
     ...(hubLinks.length ? [itemList(page.url, page.name, hubLinks.map((u) => ({ name: nameForUrl(u) ?? u, url: u })))] : []),
     ...(page.category === 'tools' ? [freeTool(page.url, page.name, plain(page.description))] : []),
     ...(['/pricing', '/platform', '/features'].includes(page.url) ? [software()] : []),
+    // Glossary terms as DefinedTerms; guides as Articles (GEO: citable definitions and how-tos)
+    ...(page.url === '/glossary'
+      ? [definedTermSet(page.url, page.name, page.sections.flatMap((s) => s.blocks).flatMap((b) => (b.type === 'ul' ? b.items : []))
+          .map((i) => i.match(/^\*\*(.+?)\*\*\s*-\s*(.+)$/)).filter((m): m is RegExpMatchArray => !!m)
+          .map((m) => ({ term: m[1], definition: plain(m[2].replace(/\s*\(`[^`]+`\)\.?$/, '')) })))]
+      : []),
+    ...(page.url.startsWith('/guides/')
+      ? [article({ url: page.url, headline: page.title, description: plain(page.description), modified: new Date().toISOString().slice(0, 10) })]
+      : []),
   ];
 } else {
   const s = stub!;
