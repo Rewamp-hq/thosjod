@@ -166,7 +166,7 @@ import Logo from './Logo.astro';
     box-shadow: 0 0 0 1px rgba(26, 24, 20, 0.06), 0 24px 48px -12px rgba(26, 24, 20, 0.18);
   }
   .menu-grid.cols-2 { grid-template-columns: auto auto; }
-  .menu-col { padding: 12px; border-radius: 12px; min-width: 260px; }
+  .menu-col { padding: 12px; border-radius: 12px; width: 320px; }
   .menu-col + .menu-col { background: var(--bg); }
   .menu-title { font-size: 12px; font-weight: 500; color: var(--muted-3); text-transform: uppercase; letter-spacing: 0.04em; padding: 0 8px 8px; }
   .menu-links { display: grid; gap: 2px; }
@@ -180,7 +180,6 @@ import Logo from './Logo.astro';
     font-size: 14px;
     line-height: 20px;
     transition: background-color 0.2s;
-    white-space: nowrap;
   }
   .menu-link:hover { background: rgba(26, 24, 20, 0.05); }
   .menu-link .badge { margin-top: 0; }
