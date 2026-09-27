@@ -1,0 +1,129 @@
+---
+// Workspace settings, new workspaces and the audit log.
+// API: GET/PUT /workspaces/{slug} · GET /workspaces/check-slug · POST /workspaces · GET /workspaces/{slug}/audit-logs
+import AppShell from '../../layouts/AppShell.astro';
+import AppHeader from '../../components/app/AppHeader.astro';
+import Icon from '../../components/Icon.astro';
+---
+
+<AppShell title="Workspace" description="Workspace name, URL and activity.">
+  <AppHeader title="Workspace" desc="Rename the workspace, change its URL, or start a new one.">
+    <button class="abtn abtn-ghost" data-open-modal="dlg-new"><Icon name="plus" size={15} />New workspace</button>
+  </AppHeader>
+
+  <div class="grid-main">
+    <form class="acard" data-form>
+      <div class="acard-head"><div><p class="acard-title">General</p><p class="acard-sub" data-role></p></div></div>
+      <div class="form-grid">
+        <label class="field">Name<input name="name" required /></label>
+        <label class="field">URL slug<input name="slug" required pattern="[a-z0-9-]+" /><span class="field-hint" data-slug-hint>Lowercase letters, numbers and hyphens.</span></label>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:16px"><button class="abtn" type="submit">Save changes</button></div>
+    </form>
+
+    <section class="acard">
+      <div class="acard-head"><p class="acard-title">Usage</p></div>
+      <dl class="kv" data-usage><div><dt>Loading…</dt><dd></dd></div></dl>
+    </section>
+  </div>
+
+  <section class="acard" style="padding:0">
+    <div class="acard-head" style="padding:18px 20px 0"><p class="acard-title">Audit log</p></div>
+    <div class="tbl-scroll">
+      <table class="atbl">
+        <thead><tr><th>Event</th><th>Module</th><th>Severity</th><th>Details</th><th>IP</th><th>When</th></tr></thead>
+        <tbody data-audit><tr><td colspan="6" class="muted">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <dialog id="dlg-new">
+    <form data-new>
+      <p class="dlg-title">New workspace</p>
+      <label class="field">Name<input name="name" required placeholder="e.g. Acme Marketing" /></label>
+      <label class="field">URL slug (optional)<input name="slug" pattern="[a-z0-9-]+" placeholder="acme-marketing" /></label>
+      <div class="dlg-actions">
+        <button type="button" class="abtn abtn-ghost" data-close-modal>Cancel</button>
+        <button type="submit" class="abtn">Create</button>
+      </div>
+    </form>
+  </dialog>
+</AppShell>
+
+<script>
+  import { api, currentWorkspace, session, esc, fmtDate, pill, toast, busy, $ } from '../../lib/api';
+
+  const form = $<HTMLFormElement>('[data-form]');
+  const f = (n: string) => form.elements.namedItem(n) as HTMLInputElement;
+  let slug = '';
+
+  async function load() {
+    const ws = await api(`/workspaces/${encodeURIComponent(slug)}`);
+    f('name').value = ws.name;
+    f('slug').value = ws.slug ?? '';
+    $('[data-role]').textContent = `You are ${ws.role} · ${ws.tier} plan`;
+    const rows: [string, unknown][] = [
+      ['Plan', ws.tier], ['Assistants', ws.total_assistants], ['Messages', ws.total_messages],
+      ['Credits', `${ws.credits_used.toLocaleString()} of ${ws.credits_limit.toLocaleString()}`], ['Billing cycle', ws.billing_reset_date],
+      ['Workspace ID', ws.id],
+    ];
+    $('[data-usage]').innerHTML = rows.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('');
+  }
+
+  async function loadAudit() {
+    const res = await api(`/workspaces/${encodeURIComponent(slug)}/audit-logs`);
+    $('[data-audit]').innerHTML = res.items.length ? res.items.map((ev: any) => `
+      <tr>
+        <td class="strong">${esc(ev.event_name)}</td>
+        <td class="muted">${esc(ev.module ?? '-')}</td>
+        <td>${pill(ev.severity)}</td>
+        <td class="muted clip-preview">${esc(ev.description ?? '')}</td>
+        <td class="muted num">${esc(ev.ip_address ?? '-')}</td>
+        <td class="muted">${fmtDate(ev.timestamp)}</td>
+      </tr>`).join('') : '<tr><td colspan="6" class="muted">No activity recorded yet.</td></tr>';
+  }
+
+  // Live slug availability while typing
+  let slugTimer: number | undefined;
+  f('slug').addEventListener('input', () => {
+    clearTimeout(slugTimer);
+    const hint = $('[data-slug-hint]');
+    const v = f('slug').value.trim();
+    if (!v || v === slug) { hint.textContent = 'Lowercase letters, numbers and hyphens.'; return; }
+    if (!/^[a-z0-9-]+$/.test(v)) { hint.textContent = 'Only lowercase letters, numbers and hyphens.'; return; }
+    slugTimer = window.setTimeout(async () => {
+      const r = await api(`/workspaces/check-slug?slug=${encodeURIComponent(v)}`).catch(() => null);
+      hint.textContent = r ? (r.available ? `✓ “${v}” is available` : `✕ “${v}” is taken`) : '';
+    }, 300);
+  });
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    busy(form.querySelector('button[type="submit"]'), async () => {
+      const ws = await api(`/workspaces/${encodeURIComponent(slug)}`, { method: 'PUT', body: { name: f('name').value.trim(), slug: f('slug').value.trim() } });
+      toast('Workspace saved.');
+      if (ws.slug !== slug) { session.setWorkspace(ws.slug); location.reload(); }
+    });
+  });
+
+  const newForm = $<HTMLFormElement>('[data-new]');
+  newForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(newForm)) as Record<string, string>;
+    const body: Record<string, string> = { name: d.name };
+    if (d.slug) body.slug = d.slug;
+    busy(newForm.querySelector('button[type="submit"]'), async () => {
+      const ws = await api('/workspaces', { method: 'POST', body });
+      session.setWorkspace(ws.slug);
+      toast(`${ws.name} created.`);
+      location.href = '/app/assistants';
+    });
+  });
+
+  currentWorkspace().then((ws) => {
+    if (!ws) return;
+    slug = ws.slug;
+    load().catch((e) => toast(e.message));
+    loadAudit().catch((e) => { $('[data-audit]').innerHTML = `<tr><td colspan="6" class="muted">${esc(e.message)}</td></tr>`; });
+  });
+</script>

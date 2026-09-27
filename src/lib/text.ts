@@ -1,4 +1,4 @@
-// Heading helpers - Primefold-style sentence case.
+// Heading helpers - sentence case.
 const KEEP_CASE = new Set([
   "Thosjod",
   "Drift",

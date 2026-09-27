@@ -1,0 +1,100 @@
+---
+// Assistants in the current workspace.
+// API: GET /workspaces/{slug} (usage), GET /assistant/workspace/{slug}, GET /assistant/models, POST /assistant/workspace/{slug}
+import AppShell from '../../../layouts/AppShell.astro';
+import AppHeader from '../../../components/app/AppHeader.astro';
+import Icon from '../../../components/Icon.astro';
+---
+
+<AppShell title="Assistants" description="Create and manage the AI assistants in this workspace.">
+  <AppHeader title="Assistants" desc="Create an assistant, give it knowledge, test it in the playground, then deploy it to your website.">
+    <button class="abtn" data-open-modal="dlg-create"><Icon name="plus" size={15} />Create Assistant</button>
+  </AppHeader>
+
+  <div class="metrics" data-metrics>
+    <div class="metric"><span class="metric-k">Assistants</span><span class="metric-v" data-m="total_assistants">-</span></div>
+    <div class="metric"><span class="metric-k">Messages</span><span class="metric-v" data-m="total_messages">-</span></div>
+    <div class="metric"><span class="metric-k">Credits used</span><span class="metric-v" data-m="credits_used">-</span></div>
+    <div class="metric"><span class="metric-k">Credit limit</span><span class="metric-v" data-m="credits_limit">-</span></div>
+  </div>
+
+  <section class="acard" style="padding:0">
+    <div class="tbl-scroll">
+      <table class="atbl">
+        <thead><tr><th>Name</th><th>Model</th><th>Industry</th><th>Created</th><th></th></tr></thead>
+        <tbody data-rows><tr><td colspan="5" class="muted">Loading assistants…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="empty-app" data-empty>
+      <span class="empty-app-icon"><Icon name="agent" size={20} /></span>
+      <p>No assistants yet - create your first one.</p>
+      <button class="abtn abtn-sm" data-open-modal="dlg-create">Create Assistant</button>
+    </div>
+  </section>
+
+  <dialog id="dlg-create">
+    <form data-create>
+      <p class="dlg-title">Create assistant</p>
+      <label class="field">Name<input name="name" required placeholder="e.g. Website sales assistant" /></label>
+      <label class="field">Model<select name="model_id" data-models required></select></label>
+      <label class="field">System prompt<textarea name="prompt" rows="4">You are a helpful AI assistant.</textarea></label>
+      <div class="dlg-actions">
+        <button type="button" class="abtn abtn-ghost" data-close-modal>Cancel</button>
+        <button type="submit" class="abtn">Create</button>
+      </div>
+    </form>
+  </dialog>
+</AppShell>
+
+<script>
+  import { api, currentWorkspace, esc, fmtDate, toast, busy, $ } from '../../../lib/api';
+
+  const rows = $('[data-rows]');
+  const empty = $('[data-empty]');
+  let slug = '';
+
+  async function load() {
+    const list = await api<any[]>(`/assistant/workspace/${encodeURIComponent(slug)}`);
+    empty.style.display = list.length ? 'none' : 'flex';
+    rows.innerHTML = list.map((a) => `
+      <tr>
+        <td><a class="row-link" href="/app/assistants/settings?id=${a.id}">${esc(a.name)}</a><div class="muted" style="font-size:12px">${esc(a.slug)}</div></td>
+        <td>${esc(a.model_name ?? a.model_key ?? '-')}</td>
+        <td>${esc(a.industry_detected && a.industry === 'auto' ? `auto (${a.industry_detected})` : a.industry ?? '-')}</td>
+        <td class="muted">${fmtDate(a.created_at)}</td>
+        <td style="text-align:right;white-space:nowrap">
+          <a class="abtn abtn-ghost abtn-sm" href="/app/assistants/knowledge?id=${a.id}">Knowledge</a>
+          <a class="abtn abtn-ghost abtn-sm" href="/app/assistants/playground?id=${a.id}">Playground</a>
+          <a class="abtn abtn-sm" href="/app/assistants/deploy?id=${a.id}">Deploy</a>
+        </td>
+      </tr>`).join('');
+  }
+
+  async function loadUsage() {
+    const ws = await api(`/workspaces/${encodeURIComponent(slug)}`);
+    document.querySelectorAll<HTMLElement>('[data-m]').forEach((el) => (el.textContent = Number(ws[el.dataset.m!] ?? 0).toLocaleString()));
+  }
+
+  api<any[]>('/assistant/models').then((models) => {
+    $('[data-models]').innerHTML = models.map((m) => `<option value="${m.id}" ${m.model === 'gemini-3.1-flash' ? 'selected' : ''}>${esc(m.name)}</option>`).join('');
+  }).catch((e) => toast(e.message));
+
+  $<HTMLFormElement>('[data-create]').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.currentTarget as HTMLFormElement;
+    const data = Object.fromEntries(new FormData(form)) as Record<string, string>;
+    await busy(form.querySelector('button[type="submit"]'), async () => {
+      const a = await api(`/assistant/workspace/${encodeURIComponent(slug)}`, { method: 'POST', body: data });
+      form.closest('dialog')!.close();
+      toast(`${a.name} created.`);
+      location.href = `/app/assistants/knowledge?id=${a.id}`;
+    });
+  });
+
+  currentWorkspace().then((ws) => {
+    if (!ws) { rows.innerHTML = '<tr><td colspan="5" class="muted">No workspace found.</td></tr>'; return; }
+    slug = ws.slug;
+    load().catch((e) => { rows.innerHTML = `<tr><td colspan="5" class="muted">${esc(e.message)}</td></tr>`; });
+    loadUsage().catch(() => {});
+  });
+</script>

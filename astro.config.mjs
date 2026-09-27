@@ -8,8 +8,8 @@ export default defineConfig({
   trailingSlash: 'ignore',
   image: { domains: ['images.unsplash.com'] },
   redirects: {
-    // application-ia-ux-copy.md: "/app - Redirects authenticated users to /app/dashboard"
-    '/app': '/app/dashboard',
+    // /app lands on the assistants list (the app's home)
+    '/app': '/app/assistants',
     // 02-sitemap planned this URL; the content lives at /compare/thosjod-vs-warmly
     '/compare/visitor-identification-tools': '/compare/thosjod-vs-warmly',
   },

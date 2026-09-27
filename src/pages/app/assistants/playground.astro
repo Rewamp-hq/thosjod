@@ -1,0 +1,160 @@
+---
+// Live test chat with an assistant over the backend WebSocket (same pipeline visitors get).
+// API: WS /ws/chat/{assistant_id}?token=<access token>
+//      When the assistant shows the contact/booking card ([LEAD_FORM]): GET /assistant/{id}/booking-slots, POST /assistant/{id}/leads
+import AppShell from '../../../layouts/AppShell.astro';
+import AppHeader from '../../../components/app/AppHeader.astro';
+import Icon from '../../../components/Icon.astro';
+---
+
+<AppShell title="Playground" description="Chat with your assistant before you deploy it.">
+  <AppHeader title="Playground" crumbs={[{ label: 'Assistants', href: '/app/assistants' }]} desc="Test answers against your knowledge base. Leads captured here show up under Leads.">
+    <span class="pill" data-conn>Connecting…</span>
+    <button class="abtn abtn-ghost" data-regen>Regenerate</button>
+    <button class="abtn abtn-ghost" data-reset>New chat</button>
+  </AppHeader>
+
+  <section class="acard play">
+    <div class="play-log chatlog" data-log>
+      <p class="csys">Ask your assistant anything.</p>
+    </div>
+    <div class="play-suggest" data-suggest></div>
+    <form class="play-input" data-send>
+      <input class="input" name="q" autocomplete="off" placeholder="Type a message…" required />
+      <button class="abtn" type="submit"><Icon name="send" size={15} />Send</button>
+    </form>
+  </section>
+
+  <template id="lead-card">
+    <form class="lead-card" data-lead-form>
+      <p class="acard-title">Leave your details</p>
+      <div class="form-grid">
+        <label class="field">Name<input name="name" required /></label>
+        <label class="field">Email<input name="email" type="email" /></label>
+        <label class="field">Phone<input name="phone" /></label>
+        <label class="field">Book a call<select name="meeting_at"><option value="">No call</option></select></label>
+        <label class="field wide">Message<input name="message" /></label>
+      </div>
+      <button class="abtn abtn-sm" type="submit">Submit</button>
+    </form>
+  </template>
+</AppShell>
+
+<script>
+  import { api, assistantId, session, WS_BASE, esc, toast, $, $$ } from '../../../lib/api';
+
+  const id = assistantId();
+  if (!id) location.href = '/app/assistants';
+  api(`/assistant/${id}`).then((a) => $$('[data-assistant-name]').forEach((el) => (el.textContent = a.name))).catch((e) => toast(e.message));
+
+  const log = $('[data-log]');
+  const conn = $('[data-conn]');
+  const sendForm = $<HTMLFormElement>('[data-send]');
+  const input = sendForm.elements.namedItem('q') as HTMLInputElement;
+  let ws: WebSocket | null = null;
+  let sessionId = '';
+  let current: HTMLElement | null = null; // bubble being streamed into
+  let currentText = '';
+
+  const setConn = (label: string, tone: string) => { conn.textContent = label; conn.className = `pill ${tone}`; };
+  const scroll = () => (log.scrollTop = log.scrollHeight);
+
+  // Minimal, safe formatting: escape first, then **bold** and line breaks
+  const fmt = (t: string) => esc(t).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+
+  function bubble(from: 'visitor' | 'agent', html: string) {
+    const el = document.createElement('div');
+    el.className = `cmsg ${from}`;
+    el.innerHTML = `<div class="cmsg-bubble">${html}</div><div class="cmsg-meta">${from === 'visitor' ? 'You' : 'Assistant'}</div>`;
+    log.appendChild(el);
+    scroll();
+    return el;
+  }
+
+  function connect() {
+    const token = session.token();
+    ws = new WebSocket(`${WS_BASE}/${encodeURIComponent(id)}?token=${encodeURIComponent(token ?? '')}`);
+    setConn('Connecting…', 'amber');
+    ws.onopen = () => setConn('Connected', 'green');
+    ws.onclose = () => { setConn('Disconnected', 'red'); ws = null; };
+    ws.onerror = () => setConn('Connection error', 'red');
+    ws.onmessage = (ev) => {
+      let msg: any;
+      try { msg = JSON.parse(ev.data); } catch { return; }
+      if (msg.type === 'config') {
+        sessionId = msg.session_id;
+        conn.title = `Model: ${msg.model}`;
+        setConn(`Connected · ${msg.model}`, 'green');
+      } else if (msg.type === 'message') {
+        if (!current) { current = bubble('agent', ''); currentText = ''; }
+        currentText += msg.content;
+        current.querySelector('.cmsg-bubble')!.innerHTML = fmt(currentText.replace('[LEAD_FORM]', '').trim());
+        scroll();
+      } else if (msg.type === 'citations' && current && msg.items?.length) {
+        const links = msg.items.map((c: any) => {
+          const url = typeof c === 'string' ? c : c.url;
+          return url ? `<a class="linkish" href="${esc(url)}" target="_blank" rel="noopener">${esc(c.title || url)}</a>` : '';
+        }).filter(Boolean).join(' · ');
+        if (links) current.querySelector('.cmsg-meta')!.insertAdjacentHTML('beforeend', ` · Sources: ${links}`);
+      } else if (msg.type === 'suggestions') {
+        $('[data-suggest]').innerHTML = (msg.items ?? []).map((s: string) => `<button type="button" class="chip" data-q="${esc(s)}">${esc(s)}</button>`).join('');
+      } else if (msg.type === 'done') {
+        if (current && currentText.includes('[LEAD_FORM]')) showLeadCard(current);
+        if (current && msg.cached) current.querySelector('.cmsg-meta')!.insertAdjacentHTML('beforeend', ' · <span class="pill">cached</span>');
+        current = null;
+        input.disabled = false;
+        input.focus();
+      } else if (msg.type === 'error') {
+        bubble('agent', `<span style="color:#b4402a">${esc(msg.content)}</span>`);
+        current = null;
+        input.disabled = false;
+      }
+    };
+  }
+
+  function send(text: string) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) { toast('Not connected - reconnecting…'); connect(); return; }
+    bubble('visitor', fmt(text));
+    $('[data-suggest]').innerHTML = '';
+    input.disabled = true;
+    ws.send(text);
+  }
+
+  sendForm.addEventListener('submit', (e) => { e.preventDefault(); const t = input.value.trim(); if (!t) return; input.value = ''; send(t); });
+  $('[data-suggest]').addEventListener('click', (e) => { const b = (e.target as HTMLElement).closest<HTMLElement>('[data-q]'); if (b) send(b.dataset.q!); });
+  $('[data-regen]').addEventListener('click', () => { if (ws?.readyState === WebSocket.OPEN) { input.disabled = true; ws.send(JSON.stringify({ action: 'regenerate' })); } });
+  $('[data-reset]').addEventListener('click', () => {
+    ws?.send(JSON.stringify({ action: 'end' }));
+    ws?.close();
+    log.innerHTML = '<p class="csys">New chat started.</p>';
+    $('[data-suggest]').innerHTML = '';
+    connect();
+  });
+
+  // ---- contact / booking card the assistant can show inline
+  async function showLeadCard(after: HTMLElement) {
+    const node = ($<HTMLTemplateElement>('#lead-card').content.cloneNode(true) as DocumentFragment).firstElementChild as HTMLFormElement;
+    after.after(node);
+    scroll();
+    try {
+      const slots = await api(`/assistant/${id}/booking-slots`, { auth: false });
+      const sel = node.querySelector<HTMLSelectElement>('[name="meeting_at"]')!;
+      if (!slots.enabled) sel.closest('label')!.remove();
+      else sel.insertAdjacentHTML('beforeend', slots.days.flatMap((d: any) => d.slots.map((s: string) =>
+        `<option value="${s}">${new Date(s).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</option>`)).join(''));
+    } catch { /* booking optional */ }
+    node.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const d = Object.fromEntries(new FormData(node)) as Record<string, string>;
+      const body: Record<string, unknown> = { name: d.name, session_id: sessionId };
+      (['email', 'phone', 'message', 'meeting_at'] as const).forEach((k) => { if (d[k]) body[k] = d[k]; });
+      try {
+        await api(`/assistant/${id}/leads`, { method: 'POST', body, auth: false });
+        if (d.meeting_at) ws?.send(JSON.stringify({ action: 'booked' }));
+        node.outerHTML = `<p class="csys">Thanks ${esc(d.name)} - details saved${d.meeting_at ? ' and call booked' : ''}.</p>`;
+      } catch (err) { toast((err as Error).message); }
+    });
+  }
+
+  connect();
+</script>

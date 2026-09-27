@@ -1,73 +1,69 @@
 ---
-// Authenticated-app shell for every /app/* route (36-frontend-implementation-map.md: "<AppShell /> with
-// persistent sidebar nav"). There is no backend yet: screens run on labelled sample data, and the preview
-// banner can switch every screen to its real empty state from application-ia-ux-copy.md.
+// Authenticated-app shell for every /app/* route. Everything on screen comes from the AX_Chat_Be API:
+// the workspace switcher (GET /workspaces), the credits meter (workspace usage) and the signed-in user.
 import Base from './Base.astro';
 import Logo from '../components/Logo.astro';
 import Icon from '../components/Icon.astro';
-import { appNav } from '../data/app/nav';
-import { workspace, billing } from '../data/app/sample';
 import '../styles/app.css';
 
 interface Props { title: string; description?: string }
 const { title, description = 'Thosjod app' } = Astro.props;
 const path = Astro.url.pathname.replace(/\/$/, '');
-const isActive = (href: string) => path === href || (href !== '/app/dashboard' && path.startsWith(href + '/'));
-const sectionActive = (item: (typeof appNav)[number]) =>
-  isActive(item.href) || !!item.children?.some((c) => isActive(c.href)) ||
-  (item.href === '/app/visitors' && path.startsWith('/app/visitor/'));
-const pct = Math.round((billing.used / billing.included) * 100);
+
+// Per-assistant pages: all keyed by ?id=<assistant uuid>
+const assistantNav = [
+  { label: 'Settings', href: '/app/assistants/settings' },
+  { label: 'Knowledge', href: '/app/assistants/knowledge' },
+  { label: 'Playground', href: '/app/assistants/playground' },
+  { label: 'Leads', href: '/app/assistants/leads' },
+  { label: 'Deploy', href: '/app/assistants/deploy' },
+];
+const inAssistant = assistantNav.some((i) => i.href === path);
 ---
 
 <Base title={`${title} - Thosjod`} description={description} noindex nofollow>
+  <script is:inline>
+    // Auth guard - runs before paint so signed-out visitors never see the shell
+    try { if (!localStorage.getItem('tj-access')) location.replace('/login?next=' + encodeURIComponent(location.pathname + location.search)); } catch (e) {}
+  </script>
   <div class="app" data-app>
-    <div class="preview-bar" role="note">
-      <span class="pb-dot" aria-hidden="true"></span>
-      <span><strong>Product preview</strong> <span class="pb-sub">- sample data only, not connected to a live workspace.</span></span>
-      <button class="pb-toggle" data-preview-toggle aria-pressed="false">
-        <span class="t-sample">Show empty states</span><span class="t-empty">Show sample data</span>
-      </button>
-      <a class="pb-back" href="/">Back to website</a>
-    </div>
-
     <aside class="side" data-side>
       <div class="side-top">
-        <a href="/app/dashboard" class="side-logo" aria-label="Thosjod app home"><Logo variant="dark" height={24} /></a>
+        <a href="/app/assistants" class="side-logo" aria-label="Thosjod app home"><Logo variant="dark" height={24} /></a>
         <button class="side-close" data-side-close aria-label="Close menu"><Icon name="x" size={18} /></button>
       </div>
-      <div class="ws">
-        <span class="ws-avatar">{workspace.name[0]}</span>
-        <span class="ws-text"><strong>{workspace.name}</strong><span>{workspace.plan} plan</span></span>
-      </div>
+
+      <label class="ws">
+        <span class="ws-avatar" data-ws-avatar>·</span>
+        <span class="ws-text">
+          <select data-ws-select aria-label="Workspace"><option>Loading…</option></select>
+          <span data-ws-plan></span>
+        </span>
+      </label>
 
       <nav class="side-nav" aria-label="App">
         <ul>
-          {appNav.map((item) => {
-            const open = sectionActive(item);
-            return (
-              <li class:list={{ open }}>
-                <a href={item.href} class:list={['nav-link', { active: open }]} aria-current={path === item.href ? 'page' : undefined}>
-                  <Icon name={item.icon} size={16} />{item.label}
-                </a>
-                {item.children && open && (
-                  <ul class="nav-sub">
-                    {item.children.map((c) => (
-                      <li><a href={c.href} class:list={['nav-sublink', { active: isActive(c.href) || (c.href === '/app/visitors' && path.startsWith('/app/visitor/')) }]} aria-current={path === c.href ? 'page' : undefined}>{c.label}</a></li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            );
-          })}
+          <li>
+            <a href="/app/assistants" class:list={['nav-link', { active: path.startsWith('/app/assistants') }]}><Icon name="agent" size={16} />Assistants</a>
+            {inAssistant && (
+              <ul class="nav-sub">
+                <li class="nav-sub-name" data-assistant-name>Assistant</li>
+                {assistantNav.map((i) => (
+                  <li><a href={i.href} data-keep-id class:list={['nav-sublink', { active: path === i.href }]} aria-current={path === i.href ? 'page' : undefined}>{i.label}</a></li>
+                ))}
+              </ul>
+            )}
+          </li>
+          <li><a href="/app/workspace" class:list={['nav-link', { active: path === '/app/workspace' }]}><Icon name="gear" size={16} />Workspace</a></li>
         </ul>
       </nav>
 
       <div class="side-foot">
-        <a href="/app/settings/billing" class="credits sample">
-          <span class="cr-top"><span>Credits this cycle</span><span>{pct}%</span></span>
-          <span class="cr-bar"><span style={`width:${pct}%`}></span></span>
-          <span class="cr-sub">{billing.used.toLocaleString('en-IN')} of {billing.included.toLocaleString('en-IN')}</span>
-        </a>
+        <div class="credits" data-credits hidden>
+          <span class="cr-top"><span>Credits used</span><span data-cr-pct></span></span>
+          <span class="cr-bar"><span data-cr-bar></span></span>
+          <span class="cr-sub" data-cr-sub></span>
+        </div>
       </div>
     </aside>
     <div class="side-scrim" data-side-close></div>
@@ -75,13 +71,10 @@ const pct = Math.round((billing.used / billing.included) * 100);
     <div class="main">
       <header class="topbar">
         <button class="menu-btn" data-side-open aria-label="Open menu"><Icon name="menu" size={18} /></button>
-        <label class="search">
-          <Icon name="search" size={15} />
-          <input type="search" placeholder="Search this page…" data-page-search aria-label="Search this page" />
-        </label>
         <div class="top-actions">
-          <button class="icon-btn-app" data-toast="No new notifications." aria-label="Notifications"><Icon name="bell" size={16} /></button>
-          <a href="/app/settings/team" class="me" aria-label="Your account"><span>AK</span></a>
+          <span class="me-name" data-me-name></span>
+          <span class="me" aria-hidden="true"><span data-me-initials></span></span>
+          <button class="icon-btn-app" data-logout aria-label="Log out" title="Log out"><Icon name="logout" size={16} /></button>
         </div>
       </header>
 
@@ -106,28 +99,11 @@ const pct = Math.round((billing.used / billing.included) * 100);
 </Base>
 
 <script>
-  const html = document.documentElement;
+  import { api, session, logout, esc } from '../lib/api';
 
-  // ---- skeleton → content (spec: skeleton screens, not spinners)
-  // (plain timer, not requestAnimationFrame - rAF is paused in background tabs and would leave skeletons up)
-  setTimeout(() => html.classList.add('app-ready'), 450);
-
-  // ---- preview toggle: sample data ↔ real empty states (per-viewer convenience only)
-  const KEY = 'tj-app-preview';
-  const setMode = (mode: string) => {
-    html.dataset.preview = mode;
-    document.querySelectorAll('[data-preview-toggle]').forEach((b) => b.setAttribute('aria-pressed', String(mode === 'empty')));
-  };
-  try { setMode(localStorage.getItem(KEY) === 'empty' ? 'empty' : 'sample'); } catch { setMode('sample'); }
-  document.querySelector('[data-preview-toggle]')?.addEventListener('click', () => {
-    const next = html.dataset.preview === 'empty' ? 'sample' : 'empty';
-    setMode(next);
-    try { localStorage.setItem(KEY, next); } catch {}
-  });
-
-  // ---- toasts
+  // ---- toasts + confirm dialog, exposed for the page scripts (see lib/api.ts)
   const toastRoot = document.querySelector<HTMLElement>('[data-toasts]')!;
-  const toast = (msg: string) => {
+  (window as any).tjToast = (msg: string) => {
     const el = document.createElement('div');
     el.className = 'toast';
     el.textContent = msg;
@@ -135,67 +111,62 @@ const pct = Math.round((billing.used / billing.included) * 100);
     setTimeout(() => el.classList.add('out'), 3200);
     setTimeout(() => el.remove(), 3700);
   };
-  (window as any).tjToast = toast;
-
-  // ---- confirm dialog for destructive actions (spec: restate what will be affected)
   const dlg = document.querySelector<HTMLDialogElement>('[data-confirm-dialog]')!;
-  const confirmAction = (title: string, body: string, okLabel: string): Promise<boolean> =>
+  (window as any).tjConfirm = (title: string, body: string, ok: string): Promise<boolean> =>
     new Promise((resolve) => {
       dlg.querySelector('[data-confirm-title]')!.textContent = title;
       dlg.querySelector('[data-confirm-body]')!.textContent = body;
-      dlg.querySelector('[data-confirm-ok]')!.textContent = okLabel;
+      dlg.querySelector('[data-confirm-ok]')!.textContent = ok;
       dlg.returnValue = '';
       dlg.showModal();
       dlg.addEventListener('close', () => resolve(dlg.returnValue === 'ok'), { once: true });
     });
 
-  document.addEventListener('click', async (e) => {
-    const t = (e.target as HTMLElement).closest<HTMLElement>('[data-toast],[data-confirm],[data-open-modal],[data-close-modal],[data-side-open],[data-side-close],[data-dismiss]');
+  // ---- generic UI: mobile sidebar, modals, logout
+  document.addEventListener('click', (e) => {
+    const t = (e.target as HTMLElement).closest<HTMLElement>('[data-side-open],[data-side-close],[data-open-modal],[data-close-modal],[data-logout]');
     if (!t) return;
-    if (t.dataset.sideOpen !== undefined) return document.querySelector('[data-app]')!.classList.add('side-open');
-    if (t.dataset.sideClose !== undefined) return document.querySelector('[data-app]')!.classList.remove('side-open');
-    if (t.dataset.dismiss !== undefined) { t.closest('[data-dismissable]')?.remove(); return; }
-    if (t.dataset.openModal) { e.preventDefault(); document.querySelector<HTMLDialogElement>(`#${t.dataset.openModal}`)?.showModal(); return; }
-    if (t.dataset.closeModal !== undefined) { t.closest('dialog')?.close(); return; }
-    if (t.dataset.confirm) {
-      e.preventDefault();
-      const ok = await confirmAction(t.dataset.confirm, t.dataset.confirmBody ?? '', t.dataset.confirmOk ?? 'Confirm');
-      if (ok && t.dataset.toast) toast(t.dataset.toast);
-      if (ok && t.dataset.removeRow !== undefined) t.closest('tr')?.remove();
-      return;
-    }
-    if (t.dataset.toast) { e.preventDefault(); toast(t.dataset.toast); }
+    if (t.dataset.sideOpen !== undefined) document.querySelector('[data-app]')!.classList.add('side-open');
+    else if (t.dataset.sideClose !== undefined) document.querySelector('[data-app]')!.classList.remove('side-open');
+    else if (t.dataset.openModal) document.querySelector<HTMLDialogElement>(`#${t.dataset.openModal}`)?.showModal();
+    else if (t.dataset.closeModal !== undefined) t.closest('dialog')?.close();
+    else if (t.dataset.logout !== undefined) logout();
   });
 
-  // ---- modal forms: toast built from field values, e.g. "Invite sent to {email}."
-  document.querySelectorAll<HTMLFormElement>('form[data-modal-form]').forEach((form) => {
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const data = new FormData(form);
-      const msg = (form.dataset.toastTemplate ?? 'Saved.').replace(/\{(\w+)\}/g, (_, k) => String(data.get(k) ?? ''));
-      form.closest('dialog')?.close();
-      form.reset();
-      toast(msg);
-    });
-  });
+  // ---- keep ?id= on the per-assistant nav links
+  const id = new URLSearchParams(location.search).get('id');
+  if (id) document.querySelectorAll<HTMLAnchorElement>('[data-keep-id]').forEach((a) => (a.href = `${a.pathname}?id=${encodeURIComponent(id)}`));
 
-  // ---- table filters (selects with data-filter-col) + page search
-  const applyFilters = () => {
-    const q = (document.querySelector<HTMLInputElement>('[data-page-search]')?.value ?? '').toLowerCase();
-    document.querySelectorAll<HTMLTableElement>('table[data-filterable]').forEach((table) => {
-      const selects = [...document.querySelectorAll<HTMLSelectElement>(`select[data-filter-for="${table.id}"]`)];
-      table.querySelectorAll<HTMLTableRowElement>('tbody tr').forEach((row) => {
-        const matchSelects = selects.every((s) => !s.value || (row.dataset[s.dataset.filterCol!] ?? '').split('|').includes(s.value));
-        const matchQuery = !q || row.textContent!.toLowerCase().includes(q);
-        row.hidden = !(matchSelects && matchQuery);
-      });
-    });
+  // ---- signed-in user
+  const user = session.user();
+  if (user) {
+    document.querySelector('[data-me-name]')!.textContent = user.name;
+    document.querySelector('[data-me-initials]')!.textContent = user.name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+  }
+
+  // ---- workspace switcher + credits meter
+  const sel = document.querySelector<HTMLSelectElement>('[data-ws-select]')!;
+  const paint = (ws: any) => {
+    document.querySelector('[data-ws-avatar]')!.textContent = (ws.name || '?')[0].toUpperCase();
+    document.querySelector('[data-ws-plan]')!.textContent = `${ws.tier} plan · ${ws.role}`;
+    const pct = ws.credits_limit ? Math.min(100, Math.round((ws.credits_used / ws.credits_limit) * 100)) : 0;
+    document.querySelector<HTMLElement>('[data-credits]')!.hidden = false;
+    document.querySelector('[data-cr-pct]')!.textContent = `${pct}%`;
+    document.querySelector<HTMLElement>('[data-cr-bar]')!.style.width = `${pct}%`;
+    document.querySelector('[data-cr-sub]')!.textContent = `${ws.credits_used.toLocaleString()} of ${ws.credits_limit.toLocaleString()} · ${ws.billing_reset_date}`;
   };
-  document.addEventListener('input', (e) => {
-    const el = e.target as HTMLElement;
-    if (el.matches('[data-page-search], select[data-filter-col]')) applyFilters();
-  });
-  document.addEventListener('change', (e) => {
-    if ((e.target as HTMLElement).matches('select[data-filter-col]')) applyFilters();
-  });
+  api<any[]>('/workspaces').then((list) => {
+    if (!list.length) { sel.innerHTML = '<option>No workspace</option>'; return; }
+    let current = session.workspace();
+    if (!list.some((w) => w.slug === current)) current = (list.find((w) => w.is_default) ?? list[0]).slug;
+    session.setWorkspace(current!);
+    sel.innerHTML = list.map((w) => `<option value="${esc(w.slug)}" ${w.slug === current ? 'selected' : ''}>${esc(w.name)}</option>`).join('');
+    paint(list.find((w) => w.slug === current));
+    (window as any).tjWorkspaces = list;
+    document.dispatchEvent(new CustomEvent('tj:workspace', { detail: list.find((w) => w.slug === current) }));
+    sel.addEventListener('change', () => {
+      session.setWorkspace(sel.value);
+      location.href = location.pathname.startsWith('/app/assistants/') ? '/app/assistants' : location.pathname;
+    });
+  }).catch(() => { sel.innerHTML = '<option>Unavailable</option>'; });
 </script>

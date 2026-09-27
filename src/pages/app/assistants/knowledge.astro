@@ -1,0 +1,327 @@
+---
+// Knowledge base for one assistant: files, text clips and website crawls.
+// API: /assistant/{id}/knowledge/file/uploads · files · files/{fid} · files/{fid}/download · files/{fid}/documents
+//      documents/{did} (PUT) · text-clips · text-clip[/{cid}] · website/analyze · website/ingest · websites[/{sid}[/rescrape]]
+import AppShell from '../../../layouts/AppShell.astro';
+import AppHeader from '../../../components/app/AppHeader.astro';
+import Icon from '../../../components/Icon.astro';
+---
+
+<AppShell title="Knowledge" description="Files, text clips and websites the assistant answers from.">
+  <AppHeader title="Knowledge" crumbs={[{ label: 'Assistants', href: '/app/assistants' }]} desc="The assistant only answers from what you add here. Processing runs in the background - statuses refresh on their own." />
+
+  <nav class="subnav" role="tablist">
+    <a href="#files" data-tab="files" class="active">Files</a>
+    <a href="#clips" data-tab="clips">Text clips</a>
+    <a href="#websites" data-tab="websites">Websites</a>
+  </nav>
+
+  <!-- Files -->
+  <section class="acard" data-panel="files">
+    <div class="acard-head">
+      <div><p class="acard-title">Files</p><p class="acard-sub">PDF, DOCX, TXT, CSV and more.</p></div>
+      <label class="abtn" style="cursor:pointer"><Icon name="plus" size={15} />Upload file<input type="file" data-upload hidden /></label>
+    </div>
+    <div class="tbl-scroll">
+      <table class="atbl">
+        <thead><tr><th>File</th><th>Size</th><th>Status</th><th>Uploaded</th><th></th></tr></thead>
+        <tbody data-files><tr><td colspan="5" class="muted">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Text clips -->
+  <section class="acard" data-panel="clips" hidden>
+    <div class="acard-head">
+      <div><p class="acard-title">Text clips</p><p class="acard-sub">Short facts, FAQs or policies typed in directly.</p></div>
+      <button class="abtn" data-new-clip><Icon name="plus" size={15} />New clip</button>
+    </div>
+    <div class="tbl-scroll">
+      <table class="atbl">
+        <thead><tr><th>Title</th><th>Content</th><th>Status</th><th>Updated</th><th></th></tr></thead>
+        <tbody data-clips><tr><td colspan="5" class="muted">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Websites -->
+  <section data-panel="websites" hidden style="display:grid;gap:16px">
+    <form class="acard" data-analyze>
+      <div class="acard-head"><div><p class="acard-title">Add a website</p><p class="acard-sub">Find the pages on a site, pick the ones to learn from, then crawl.</p></div></div>
+      <div class="inline-form">
+        <input class="input" name="url" type="url" required placeholder="https://example.com" />
+        <button class="abtn" type="submit">Find pages</button>
+      </div>
+      <div data-discovered hidden style="margin-top:14px">
+        <div class="filters" style="justify-content:space-between;margin-bottom:8px">
+          <label><input type="checkbox" data-check-all checked /> Select all <span class="muted" data-found-count></span></label>
+          <span class="filters">
+            <label>Max pages <input class="input input-sm" type="number" name="max_pages" value="20" min="1" max="200" /></label>
+            <label>Depth <input class="input input-sm" type="number" name="max_depth" value="2" min="1" max="5" /></label>
+            <button class="abtn" type="button" data-ingest>Crawl selected</button>
+          </span>
+        </div>
+        <ul class="link-list" data-links></ul>
+      </div>
+    </form>
+
+    <section class="acard">
+      <div class="acard-head"><p class="acard-title">Website sources</p></div>
+      <div data-sources><p class="muted">Loading…</p></div>
+    </section>
+  </section>
+
+  <!-- clip editor -->
+  <dialog id="dlg-clip">
+    <form data-clip-form>
+      <p class="dlg-title" data-clip-title>New text clip</p>
+      <input type="hidden" name="id" />
+      <label class="field">Title<input name="title" required /></label>
+      <label class="field">Content<textarea name="content" rows="8" required></textarea></label>
+      <div class="dlg-actions">
+        <button type="button" class="abtn abtn-ghost" data-close-modal>Cancel</button>
+        <button type="submit" class="abtn">Save clip</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- extracted document editor -->
+  <dialog id="dlg-doc" class="dlg-wide">
+    <form data-doc-form>
+      <p class="dlg-title" data-doc-title>Extracted content</p>
+      <p class="acard-sub">Edit the text the assistant learned from this file. Saving re-indexes it.</p>
+      <input type="hidden" name="id" />
+      <textarea name="raw_content" rows="16" class="input mono"></textarea>
+      <div class="dlg-actions">
+        <button type="button" class="abtn abtn-ghost" data-close-modal>Close</button>
+        <button type="submit" class="abtn">Save &amp; re-index</button>
+      </div>
+    </form>
+  </dialog>
+</AppShell>
+
+<script>
+  import { api, assistantId, esc, fmtDate, pill, toast, busy, confirmAction, $, $$ } from '../../../lib/api';
+
+  const id = assistantId();
+  if (!id) location.href = '/app/assistants';
+  const base = `/assistant/${id}/knowledge`;
+  api(`/assistant/${id}`).then((a) => $$('[data-assistant-name]').forEach((el) => (el.textContent = a.name))).catch((e) => toast(e.message));
+
+  const PENDING = /pending|process|queued|crawl|running|uploaded/i;
+  const size = (b?: number) => (b == null ? '-' : b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 1024).toFixed(1)} KB` : `${(b / 1048576).toFixed(1)} MB`);
+
+  // ---------- tabs
+  const show = (tab: string) => {
+    $$('[data-tab]').forEach((a) => a.classList.toggle('active', a.dataset.tab === tab));
+    $$('[data-panel]').forEach((p) => (p.hidden = p.dataset.panel !== tab));
+  };
+  $$('[data-tab]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); history.replaceState(null, '', `#${a.dataset.tab}`); show(a.dataset.tab!); }));
+  show(['files', 'clips', 'websites'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'files');
+
+  // ---------- files
+  let files: any[] = [];
+  async function loadFiles() {
+    files = await api<any[]>(`${base}/files`);
+    $('[data-files]').innerHTML = files.length ? files.map((f) => `
+      <tr>
+        <td class="strong">${esc(f.filename)}</td>
+        <td class="num muted">${size(f.size_bytes)}</td>
+        <td>${pill(f.status)}</td>
+        <td class="muted">${fmtDate(f.created_at)}</td>
+        <td style="text-align:right;white-space:nowrap">
+          <button class="abtn abtn-ghost abtn-sm" data-file-doc="${f.id}">View content</button>
+          <button class="abtn abtn-ghost abtn-sm" data-file-dl="${f.id}">Download</button>
+          <button class="abtn abtn-ghost abtn-sm" data-file-del="${f.id}">Delete</button>
+        </td>
+      </tr>`).join('') : '<tr><td colspan="5" class="muted">No files yet - upload one to get started.</td></tr>';
+    return files.some((f) => PENDING.test(f.status));
+  }
+
+  $<HTMLInputElement>('[data-upload]').addEventListener('change', async (e) => {
+    const input = e.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    toast(`Uploading ${file.name}…`);
+    try {
+      const res = await api(`${base}/file/uploads`, { method: 'POST', body: fd });
+      toast(res.message ?? 'Upload started.');
+      poll();
+    } catch (err) { toast((err as Error).message); }
+    input.value = '';
+  });
+
+  $('[data-files]').addEventListener('click', async (e) => {
+    const t = (e.target as HTMLElement).closest<HTMLButtonElement>('button');
+    if (!t) return;
+    if (t.dataset.fileDel) {
+      const f = files.find((x) => x.id === t.dataset.fileDel);
+      if (!(await confirmAction(`Delete “${f?.filename}”?`, 'The file and everything the assistant learned from it will be removed.'))) return;
+      busy(t, async () => { await api(`${base}/files/${t.dataset.fileDel}`, { method: 'DELETE' }); toast('File deleted.'); loadFiles(); });
+    }
+    if (t.dataset.fileDl) {
+      busy(t, async () => {
+        const res = await api<Response>(`${base}/files/${t.dataset.fileDl}/download`, { raw: true });
+        const url = URL.createObjectURL(await res.blob());
+        const a = Object.assign(document.createElement('a'), { href: url, download: files.find((x) => x.id === t.dataset.fileDl)?.filename ?? 'file' });
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      });
+    }
+    if (t.dataset.fileDoc) {
+      busy(t, async () => {
+        const docs = await api<any[]>(`${base}/files/${t.dataset.fileDoc}/documents`);
+        if (!docs.length) return toast('No extracted content yet - the file is still processing.');
+        openDoc(docs[0]);
+      });
+    }
+  });
+
+  const docForm = $<HTMLFormElement>('[data-doc-form]');
+  function openDoc(doc: any) {
+    $('[data-doc-title]').textContent = doc.source_filename ?? 'Extracted content';
+    (docForm.elements.namedItem('id') as HTMLInputElement).value = doc.id;
+    (docForm.elements.namedItem('raw_content') as HTMLTextAreaElement).value = doc.raw_content ?? '';
+    $<HTMLDialogElement>('#dlg-doc').showModal();
+  }
+  docForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const docId = (docForm.elements.namedItem('id') as HTMLInputElement).value;
+    const raw_content = (docForm.elements.namedItem('raw_content') as HTMLTextAreaElement).value;
+    busy(docForm.querySelector('button[type="submit"]'), async () => {
+      await api(`${base}/documents/${docId}`, { method: 'PUT', body: { raw_content } });
+      $<HTMLDialogElement>('#dlg-doc').close();
+      toast('Content saved - re-indexing.');
+      poll();
+    });
+  });
+
+  // ---------- text clips
+  let clips: any[] = [];
+  async function loadClips() {
+    clips = await api<any[]>(`${base}/text-clips`);
+    $('[data-clips]').innerHTML = clips.length ? clips.map((c) => `
+      <tr>
+        <td class="strong">${esc(c.title)}</td>
+        <td class="muted clip-preview">${esc(c.content.slice(0, 140))}${c.content.length > 140 ? '…' : ''}</td>
+        <td>${pill(c.embedding_status)}</td>
+        <td class="muted">${fmtDate(c.updated_at)}</td>
+        <td style="text-align:right;white-space:nowrap">
+          <button class="abtn abtn-ghost abtn-sm" data-clip-edit="${c.id}">Edit</button>
+          <button class="abtn abtn-ghost abtn-sm" data-clip-del="${c.id}">Delete</button>
+        </td>
+      </tr>`).join('') : '<tr><td colspan="5" class="muted">No text clips yet.</td></tr>';
+    return clips.some((c) => PENDING.test(c.embedding_status ?? ''));
+  }
+
+  const clipForm = $<HTMLFormElement>('[data-clip-form]');
+  const clipField = (n: string) => clipForm.elements.namedItem(n) as HTMLInputElement;
+  const openClip = (c?: any) => {
+    $('[data-clip-title]').textContent = c ? 'Edit text clip' : 'New text clip';
+    clipField('id').value = c?.id ?? '';
+    clipField('title').value = c?.title ?? '';
+    clipField('content').value = c?.content ?? '';
+    $<HTMLDialogElement>('#dlg-clip').showModal();
+  };
+  $('[data-new-clip]').addEventListener('click', () => openClip());
+  $('[data-clips]').addEventListener('click', async (e) => {
+    const t = (e.target as HTMLElement).closest<HTMLButtonElement>('button');
+    if (!t) return;
+    if (t.dataset.clipEdit) busy(t, async () => openClip(await api(`${base}/text-clip/${t.dataset.clipEdit}`)));
+    if (t.dataset.clipDel) {
+      const c = clips.find((x) => x.id === t.dataset.clipDel);
+      if (!(await confirmAction(`Delete “${c?.title}”?`, 'The assistant will stop using this clip.'))) return;
+      busy(t, async () => { await api(`${base}/text-clip/${t.dataset.clipDel}`, { method: 'DELETE' }); toast('Clip deleted.'); loadClips(); });
+    }
+  });
+  clipForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const cid = clipField('id').value;
+    const body = { title: clipField('title').value, content: clipField('content').value };
+    busy(clipForm.querySelector('button[type="submit"]'), async () => {
+      await api(cid ? `${base}/text-clip/${cid}` : `${base}/text-clip`, { method: cid ? 'PUT' : 'POST', body });
+      $<HTMLDialogElement>('#dlg-clip').close();
+      toast(cid ? 'Clip updated.' : 'Clip added.');
+      poll();
+    });
+  });
+
+  // ---------- websites
+  const analyzeForm = $<HTMLFormElement>('[data-analyze]');
+  let rootUrl = '';
+  analyzeForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    rootUrl = (analyzeForm.elements.namedItem('url') as HTMLInputElement).value.trim();
+    busy(analyzeForm.querySelector('button[type="submit"]'), async () => {
+      const links = await api<any[]>(`${base}/website/analyze`, { method: 'POST', body: { url: rootUrl } });
+      const internal = links.filter((l) => l.type !== 'external');
+      $('[data-found-count]').textContent = `(${internal.length} pages found)`;
+      $('[data-links]').innerHTML = internal.map((l) => `
+        <li><label><input type="checkbox" value="${esc(l.url)}" checked />
+          <span><strong>${esc(l.title || l.url)}</strong><small>${esc(l.url)}</small></span>
+          ${l.type === 'document' ? '<span class="pill">document</span>' : ''}</label></li>`).join('') || '<li class="muted">No pages found on that URL.</li>';
+      $('[data-discovered]').hidden = false;
+    });
+  });
+  $<HTMLInputElement>('[data-check-all]').addEventListener('change', (e) =>
+    $$<HTMLInputElement>('[data-links] input').forEach((c) => (c.checked = (e.currentTarget as HTMLInputElement).checked)));
+  $<HTMLButtonElement>('[data-ingest]').addEventListener('click', (e) => {
+    const selected = $$<HTMLInputElement>('[data-links] input:checked').map((c) => c.value);
+    if (!selected.length) return toast('Select at least one page.');
+    const num = (n: string) => Number((analyzeForm.elements.namedItem(n) as HTMLInputElement).value);
+    busy(e.currentTarget as HTMLButtonElement, async () => {
+      const res = await api(`${base}/website/ingest`, {
+        method: 'POST',
+        body: { url: rootUrl, mode: selected.length > 1 ? 'crawl' : 'single', selected_urls: selected, config: { max_pages: num('max_pages'), max_depth: num('max_depth') } },
+      });
+      toast(res.message ?? 'Crawl started.');
+      $('[data-discovered]').hidden = true;
+      analyzeForm.reset();
+      poll();
+    });
+  });
+
+  let sources: any[] = [];
+  async function loadSources() {
+    sources = await api<any[]>(`${base}/websites`);
+    $('[data-sources]').innerHTML = sources.length ? sources.map((s) => `
+      <details class="source">
+        <summary>
+          <span class="strong">${esc(s.url)}</span> ${pill(s.status)}
+          <span class="muted">${s.pages_count} pages · ${esc(s.mode)} · ${fmtDate(s.created_at)}</span>
+          <span class="source-actions">
+            <button type="button" class="abtn abtn-ghost abtn-sm" data-src-rescrape="${s.id}">Re-crawl</button>
+            <button type="button" class="abtn abtn-ghost abtn-sm" data-src-del="${s.id}">Delete</button>
+          </span>
+        </summary>
+        <table class="atbl"><tbody>${(s.subpages ?? []).map((p: any) => `
+          <tr><td><a class="row-link" href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.title || p.url)}</a></td>
+          <td class="num muted">${p.word_count} words</td><td>${pill(p.status)}</td></tr>`).join('') || '<tr><td class="muted">No pages yet.</td></tr>'}
+        </tbody></table>
+      </details>`).join('') : '<p class="muted">No websites added yet.</p>';
+    return sources.some((s) => PENDING.test(s.status) || (s.subpages ?? []).some((p: any) => PENDING.test(p.status)));
+  }
+  $('[data-sources]').addEventListener('click', async (e) => {
+    const t = (e.target as HTMLElement).closest<HTMLButtonElement>('button');
+    if (!t) return;
+    e.preventDefault();
+    if (t.dataset.srcRescrape) busy(t, async () => { const r = await api(`${base}/websites/${t.dataset.srcRescrape}/rescrape`, { method: 'POST' }); toast(r.message ?? 'Re-crawl started.'); poll(); });
+    if (t.dataset.srcDel) {
+      const s = sources.find((x) => x.id === t.dataset.srcDel);
+      if (!(await confirmAction(`Delete ${s?.url}?`, 'All crawled pages from this site will be removed from the knowledge base.'))) return;
+      busy(t, async () => { await api(`${base}/websites/${t.dataset.srcDel}`, { method: 'DELETE' }); toast('Website removed.'); loadSources(); });
+    }
+  });
+
+  // ---------- load + refresh while anything is still processing
+  let timer: number | undefined;
+  async function poll() {
+    clearTimeout(timer);
+    const results = await Promise.allSettled([loadFiles(), loadClips(), loadSources()]);
+    results.forEach((r) => r.status === 'rejected' && toast((r.reason as Error).message));
+    if (results.some((r) => r.status === 'fulfilled' && r.value)) timer = window.setTimeout(poll, 5000);
+  }
+  poll();
+</script>

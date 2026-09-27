@@ -130,7 +130,7 @@ const kinds: Kind[] = section.blocks.map((b): Kind => {
 });
 
 const wide = kinds.some((x) => ['cards', 'compare', 'linkcards', 'featcards', 'table', 'form', 'tiers', 'journey', 'steps'].includes(x.k));
-// Primefold-style headings: sentence case, ending with a period.
+// Headings: sentence case, ending with a period.
 const heading = finish(section.title || sentence(section.eyebrow));
 const eyebrow = section.title ? section.eyebrow : '';
 const tone = index % 2 === 0 ? 'on-bg' : 'on-white';

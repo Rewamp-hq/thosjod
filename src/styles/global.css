@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Thosjod design tokens - mirrored from the primefold.ai reference
+   Thosjod design tokens
    ========================================================================== */
 :root {
   --bg: #faf9f8; /* warm off-white page sheet */
@@ -13,7 +13,7 @@
   --line: #e2e2e2;
   --line-soft: #f0efee;
 
-  /* accents (Primefold) */
+  /* accents */
   --teal: #208374;
   --teal-bright: #16ffde;
   --orange: #ca7b57;

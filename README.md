@@ -1,6 +1,6 @@
 # Thosjod website (Astro)
 
-Marketing site for Thosjod, built with Astro 5. The visual design follows primefold.ai. The copy comes from `thosjod_content/`.
+Marketing site for Thosjod, built with Astro 5. The copy comes from `thosjod_content/`.
 
 ## Run it
 
@@ -27,7 +27,7 @@ src/
   pages/index.astro     homepage
 ```
 
-## Design system (taken from primefold.ai)
+## Design system
 
 | Token      | Value                                                            |
 | ---------- | ---------------------------------------------------------------- |
@@ -41,7 +41,7 @@ src/
 ## Content decisions
 
 - **Photos** come from Unsplash as placeholders. They are listed in `src/data/home.ts`. Replace them with owned imagery before launch. The content brief says "no stock photography".
-- **Testimonial carousel**: there are no real testimonials yet, so it shows pillar statements. The section keeps the Primefold layout.
+- **Testimonial carousel**: there are no real testimonials yet, so it shows pillar statements.
 - **Outcomes section**: it names the metrics Thosjod measures and shows no invented numbers, as `home.md` requires.
 - **Logo strip**: it shows "Works with" integrations and AI engines. There are no customer logos yet.
 - **Announcement bar**: left out until there is a real announcement.

@@ -1,0 +1,98 @@
+---
+// Assistant general settings + call booking.
+// API: GET /assistant/{id}, GET /assistant/models, GET /assistant/industries, PUT /assistant/{id}
+import AppShell from '../../../layouts/AppShell.astro';
+import AppHeader from '../../../components/app/AppHeader.astro';
+
+const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+---
+
+<AppShell title="Assistant settings" description="Name, model, prompt, industry and booking hours.">
+  <AppHeader title="Settings" crumbs={[{ label: 'Assistants', href: '/app/assistants' }]} desc="How the assistant answers, and when visitors can book a call." />
+
+  <form class="grid-main" data-form>
+    <section class="acard">
+      <div class="acard-head"><p class="acard-title">General</p></div>
+      <div class="form-grid">
+        <label class="field">Name<input name="name" required /></label>
+        <label class="field">Model<select name="model_id" data-models></select></label>
+        <label class="field wide">Industry profile
+          <select name="industry" data-industries></select>
+          <span class="field-hint" data-detected></span>
+        </label>
+        <label class="field wide">System prompt<textarea name="prompt" rows="12"></textarea></label>
+      </div>
+    </section>
+
+    <section class="acard">
+      <div class="acard-head"><p class="acard-title">Call booking</p></div>
+      <div class="toggle-row">
+        <span>Let visitors book a call<small>The assistant offers free slots from these hours.</small></span>
+        <label class="switch"><input type="checkbox" name="b_enabled" /><span></span></label>
+      </div>
+      <div class="form-grid" style="margin-top:12px">
+        <label class="field wide">Timezone<input name="b_timezone" placeholder="Asia/Kolkata" /></label>
+        <label class="field">Day starts<input name="b_start" type="time" /></label>
+        <label class="field">Day ends<input name="b_end" type="time" /></label>
+        <label class="field">Slot length (min)<input name="b_slot_minutes" type="number" min="10" max="180" /></label>
+        <label class="field">Days ahead<input name="b_days_ahead" type="number" min="1" max="60" /></label>
+        <label class="field wide">Minimum notice (hours)<input name="b_min_notice_hours" type="number" min="0" /></label>
+        <fieldset class="field wide day-picks">
+          <legend>Working days</legend>
+          {days.map((d, i) => <label class="chip"><input type="checkbox" name="b_days" value={i} />{d}</label>)}
+        </fieldset>
+      </div>
+      <button type="submit" class="abtn" style="margin-top:16px;width:100%;justify-content:center">Save changes</button>
+    </section>
+  </form>
+</AppShell>
+
+<script>
+  import { api, assistantId, esc, toast, busy, $ } from '../../../lib/api';
+
+  const id = assistantId();
+  if (!id) location.href = '/app/assistants';
+  const form = $<HTMLFormElement>('[data-form]');
+  const f = (n: string) => form.elements.namedItem(n) as HTMLInputElement;
+
+  Promise.all([api(`/assistant/${id}`), api<any[]>('/assistant/models'), api<any[]>('/assistant/industries')])
+    .then(([a, models, industries]) => {
+      document.querySelectorAll('[data-assistant-name]').forEach((el) => (el.textContent = a.name));
+      $('[data-models]').innerHTML = models.map((m) => `<option value="${m.id}" ${m.id === a.model_id ? 'selected' : ''}>${esc(m.name)}</option>`).join('');
+      $('[data-industries]').innerHTML = [{ key: 'auto', label: 'Auto-detect from knowledge base' }, ...industries]
+        .map((i) => `<option value="${esc(i.key)}" ${i.key === (a.industry ?? 'auto') ? 'selected' : ''}>${esc(i.label)}</option>`).join('');
+      $('[data-detected]').textContent = a.industry_detected ? `Detected: ${a.industry_detected}` : '';
+      f('name').value = a.name;
+      (form.elements.namedItem('prompt') as HTMLTextAreaElement).value = a.prompt ?? '';
+      const b = a.booking ?? {};
+      f('b_enabled').checked = !!b.enabled;
+      ['timezone', 'start', 'end', 'slot_minutes', 'days_ahead', 'min_notice_hours'].forEach((k) => (f(`b_${k}`).value = b[k] ?? ''));
+      form.querySelectorAll<HTMLInputElement>('[name="b_days"]').forEach((c) => (c.checked = (b.days ?? []).includes(Number(c.value))));
+    })
+    .catch((e) => toast(e.message));
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const body = {
+      name: f('name').value,
+      model_id: (form.elements.namedItem('model_id') as HTMLSelectElement).value,
+      industry: (form.elements.namedItem('industry') as HTMLSelectElement).value,
+      prompt: (form.elements.namedItem('prompt') as HTMLTextAreaElement).value,
+      booking: {
+        enabled: f('b_enabled').checked,
+        timezone: f('b_timezone').value,
+        start: f('b_start').value,
+        end: f('b_end').value,
+        slot_minutes: Number(f('b_slot_minutes').value),
+        days_ahead: Number(f('b_days_ahead').value),
+        min_notice_hours: Number(f('b_min_notice_hours').value),
+        days: [...form.querySelectorAll<HTMLInputElement>('[name="b_days"]:checked')].map((c) => Number(c.value)),
+      },
+    };
+    busy(form.querySelector('button[type="submit"]'), async () => {
+      const a = await api(`/assistant/${id}`, { method: 'PUT', body });
+      document.querySelectorAll('[data-assistant-name]').forEach((el) => (el.textContent = a.name));
+      toast('Settings saved.');
+    });
+  });
+</script>

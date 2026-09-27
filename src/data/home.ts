@@ -178,7 +178,7 @@ export const engine = {
   ],
 };
 
-// Primefold's testimonial carousel, repurposed as an honest pillar showcase
+// Capability carousel: pillar statements (no customer testimonials yet)
 export const showcase = [
   {
     tag: "Qualification & Routing",
@@ -319,8 +319,8 @@ export const industriesSection = {
 
 export const trust = {
   eyebrow: "Trust",
-  title: "Trust, built into every layer.",
-  sub: "Every conversation passes through three layers of control before it reaches a visitor - or your CRM.",
+  title: "Accurate answers. Accountable AI.",
+  sub: "Your agents answer only from sources you approve, hand off when they are unsure, and log every change - so you stay in control of what visitors hear.",
   items: [
     {
       title: "Grounded answers, not guesses",

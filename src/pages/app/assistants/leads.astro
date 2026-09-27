@@ -1,0 +1,197 @@
+---
+// Leads captured by one assistant + the notification emails sent for each lead.
+// API: GET /assistant/{id}/leads · GET .../leads/{lid}/conversation · PATCH/DELETE .../leads/{lid}
+//      GET/PUT /assistant/{id}/leads/templates · POST .../leads/templates/test
+import AppShell from '../../../layouts/AppShell.astro';
+import AppHeader from '../../../components/app/AppHeader.astro';
+
+const statuses = ['new', 'contacted', 'converted', 'archived'];
+---
+
+<AppShell title="Leads" description="Visitors who shared their details with the assistant.">
+  <AppHeader title="Leads" crumbs={[{ label: 'Assistants', href: '/app/assistants' }]} desc="Every visitor who shared contact details or booked a call." />
+
+  <nav class="subnav" role="tablist">
+    <a href="#leads" data-tab="leads" class="active">Leads</a>
+    <a href="#emails" data-tab="emails">Email notifications</a>
+  </nav>
+
+  <section data-panel="leads" style="display:grid;gap:16px">
+    <div class="metrics">
+      {['total', ...statuses].slice(0, 4).map((s) => (
+        <div class="metric"><span class="metric-k" style="text-transform:capitalize">{s}</span><span class="metric-v" data-stat={s}>-</span></div>
+      ))}
+    </div>
+
+    <div class="filters">
+      <label>Status
+        <select data-status>
+          <option value="all">All</option>
+          {statuses.map((s) => <option value={s}>{s[0].toUpperCase() + s.slice(1)}</option>)}
+        </select>
+      </label>
+      <input class="input" type="search" placeholder="Search name, email or phone" data-search style="min-width:260px" />
+    </div>
+
+    <section class="acard" style="padding:0">
+      <div class="tbl-scroll">
+        <table class="atbl">
+          <thead><tr><th>Lead</th><th>Summary</th><th>Call</th><th>Status</th><th>Captured</th><th></th></tr></thead>
+          <tbody data-rows><tr><td colspan="6" class="muted">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="pager" data-pager></div>
+    </section>
+  </section>
+
+  <form class="acard" data-panel="emails" data-tpl hidden>
+    <div class="acard-head"><div><p class="acard-title">Email notifications</p><p class="acard-sub">Placeholders: {'{{user_name}} {{user_email}} {{user_phone}} {{user_message}} {{assistant_name}} {{lead_date}} {{meeting_time}}'}</p></div></div>
+    <div class="grid-2">
+      <div style="display:grid;gap:12px">
+        <div class="toggle-row"><span>Email me about new leads</span><label class="switch"><input type="checkbox" name="enable_owner_email" /><span></span></label></div>
+        <label class="field">Send to<input name="owner_notification_email" type="email" /></label>
+        <label class="field">Subject<input name="owner_email_subject" /></label>
+        <label class="field">Body (HTML)<textarea name="owner_email_body" rows="10" class="mono"></textarea></label>
+        <div class="inline-form"><input class="input" type="email" placeholder="Send a test to…" data-test-to="owner" /><button type="button" class="abtn abtn-ghost" data-test="owner">Send test</button></div>
+      </div>
+      <div style="display:grid;gap:12px">
+        <div class="toggle-row"><span>Send visitors a confirmation</span><label class="switch"><input type="checkbox" name="enable_user_email" /><span></span></label></div>
+        <label class="field">Subject<input name="user_email_subject" /></label>
+        <label class="field">Body (HTML)<textarea name="user_email_body" rows="10" class="mono"></textarea></label>
+        <div class="inline-form"><input class="input" type="email" placeholder="Send a test to…" data-test-to="user" /><button type="button" class="abtn abtn-ghost" data-test="user">Send test</button></div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:16px"><button class="abtn" type="submit">Save templates</button></div>
+  </form>
+
+  <dialog id="dlg-convo" class="dlg-wide">
+    <form method="dialog">
+      <p class="dlg-title" data-convo-title>Conversation</p>
+      <dl class="kv" data-convo-kv></dl>
+      <div class="chatlog convo" data-convo-log></div>
+      <div class="dlg-actions"><button class="abtn abtn-ghost">Close</button></div>
+    </form>
+  </dialog>
+</AppShell>
+
+<script>
+  import { api, assistantId, esc, fmtDate, pill, toast, busy, confirmAction, $, $$ } from '../../../lib/api';
+
+  const id = assistantId();
+  if (!id) location.href = '/app/assistants';
+  const base = `/assistant/${id}/leads`;
+  const STATUSES = ['new', 'contacted', 'converted', 'archived'];
+  api(`/assistant/${id}`).then((a) => $$('[data-assistant-name]').forEach((el) => (el.textContent = a.name))).catch((e) => toast(e.message));
+
+  // ---------- tabs
+  const show = (tab: string) => {
+    $$('[data-tab]').forEach((a) => a.classList.toggle('active', a.dataset.tab === tab));
+    $$('[data-panel]').forEach((p) => (p.hidden = p.dataset.panel !== tab));
+  };
+  $$('[data-tab]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); history.replaceState(null, '', `#${a.dataset.tab}`); show(a.dataset.tab!); }));
+  show(location.hash === '#emails' ? 'emails' : 'leads');
+
+  // ---------- leads list
+  const LIMIT = 25;
+  let skip = 0;
+  let leads: any[] = [];
+  let searchTimer: number | undefined;
+
+  async function load() {
+    const q = new URLSearchParams({ skip: String(skip), limit: String(LIMIT), status: $<HTMLSelectElement>('[data-status]').value });
+    const search = $<HTMLInputElement>('[data-search]').value.trim();
+    if (search) q.set('search', search);
+    const res = await api(`${base}?${q}`);
+    leads = res.leads;
+    $$('[data-stat]').forEach((el) => (el.textContent = String(res.stats[el.dataset.stat!] ?? 0)));
+    $('[data-rows]').innerHTML = leads.length ? leads.map((l) => `
+      <tr>
+        <td><span class="strong">${esc(l.name)}</span><div class="muted" style="font-size:12px">${esc([l.email, l.phone].filter(Boolean).join(' · '))}</div></td>
+        <td class="muted clip-preview">${esc(l.summary || l.wants || l.message || '-')}</td>
+        <td class="muted">${l.meeting_at ? fmtDate(l.meeting_at) : '-'}</td>
+        <td><select class="input input-sm" data-set-status="${l.id}">${STATUSES.map((s) => `<option ${s === l.status ? 'selected' : ''}>${s}</option>`).join('')}</select></td>
+        <td class="muted">${fmtDate(l.created_at)}<div style="font-size:12px">via ${esc(l.captured_via)}</div></td>
+        <td style="text-align:right;white-space:nowrap">
+          <button class="abtn abtn-ghost abtn-sm" data-convo="${l.id}">Conversation</button>
+          <button class="abtn abtn-ghost abtn-sm" data-del="${l.id}">Delete</button>
+        </td>
+      </tr>`).join('') : '<tr><td colspan="6" class="muted">No leads yet. Leads appear here when visitors share their details in chat.</td></tr>';
+    const pages = Math.ceil(res.total / LIMIT);
+    $('[data-pager]').innerHTML = pages > 1
+      ? `<button class="abtn abtn-ghost abtn-sm" data-page="-1" ${skip === 0 ? 'disabled' : ''}>Previous</button>
+         <span class="muted">Page ${skip / LIMIT + 1} of ${pages}</span>
+         <button class="abtn abtn-ghost abtn-sm" data-page="1" ${skip + LIMIT >= res.total ? 'disabled' : ''}>Next</button>` : '';
+  }
+  const reload = () => load().catch((e) => toast(e.message));
+
+  $('[data-status]').addEventListener('change', () => { skip = 0; reload(); });
+  $('[data-search]').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = window.setTimeout(() => { skip = 0; reload(); }, 300); });
+  $('[data-pager]').addEventListener('click', (e) => { const b = (e.target as HTMLElement).closest<HTMLElement>('[data-page]'); if (b) { skip += Number(b.dataset.page) * LIMIT; reload(); } });
+
+  $('[data-rows]').addEventListener('change', async (e) => {
+    const sel = (e.target as HTMLElement).closest<HTMLSelectElement>('[data-set-status]');
+    if (!sel) return;
+    try {
+      await api(`${base}/${sel.dataset.setStatus}`, { method: 'PATCH', body: { status: sel.value } });
+      toast(`Lead marked ${sel.value}.`);
+      reload();
+    } catch (err) { toast((err as Error).message); }
+  });
+
+  $('[data-rows]').addEventListener('click', async (e) => {
+    const t = (e.target as HTMLElement).closest<HTMLButtonElement>('button');
+    if (!t) return;
+    const lead = leads.find((l) => String(l.id) === (t.dataset.del ?? t.dataset.convo));
+    if (t.dataset.del) {
+      if (!(await confirmAction(`Delete lead “${lead?.name}”?`, 'The lead and its saved conversation will be permanently removed.'))) return;
+      busy(t, async () => { await api(`${base}/${t.dataset.del}`, { method: 'DELETE' }); toast('Lead deleted.'); reload(); });
+    }
+    if (t.dataset.convo) {
+      busy(t, async () => {
+        const c = await api(`${base}/${t.dataset.convo}/conversation`);
+        $('[data-convo-title]').textContent = lead?.name ?? 'Conversation';
+        const rows: [string, unknown][] = [
+          ['Summary', c.summary], ['Wants', c.wants], ['Concerns', (c.concerns ?? []).join(', ')],
+          ['Next step', c.next_step], ['Interest', c.interest_level],
+          ...Object.entries(c.details ?? {}).map(([k, v]) => [k.replace(/_/g, ' '), v] as [string, unknown]),
+        ];
+        $('[data-convo-kv]').innerHTML = rows.filter(([, v]) => v).map(([k, v]) => `<div><dt style="text-transform:capitalize">${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('');
+        $('[data-convo-log]').innerHTML = (c.messages ?? []).map((m: any) => `
+          <div class="cmsg ${m.role === 'visitor' || m.role === 'user' ? 'visitor' : 'agent'}">
+            <div class="cmsg-bubble">${esc(m.text ?? m.content ?? '').replace(/\n/g, '<br>')}</div>
+            <div class="cmsg-meta">${m.role === 'visitor' || m.role === 'user' ? 'Visitor' : 'Assistant'}${m.at ? ' · ' + fmtDate(m.at) : ''}</div>
+          </div>`).join('') || '<p class="muted">No messages saved for this lead.</p>';
+        $<HTMLDialogElement>('#dlg-convo').showModal();
+      });
+    }
+  });
+
+  reload();
+
+  // ---------- email templates
+  const tpl = $<HTMLFormElement>('[data-tpl]');
+  const el = (n: string) => tpl.elements.namedItem(n) as HTMLInputElement;
+  const TEXT = ['owner_notification_email', 'owner_email_subject', 'owner_email_body', 'user_email_subject', 'user_email_body'];
+  api(`${base}/templates`).then((t) => {
+    TEXT.forEach((k) => (el(k).value = t[k] ?? ''));
+    el('enable_owner_email').checked = !!t.enable_owner_email;
+    el('enable_user_email').checked = !!t.enable_user_email;
+  }).catch((e) => toast(e.message));
+
+  tpl.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const body: Record<string, unknown> = Object.fromEntries(TEXT.map((k) => [k, el(k).value]));
+    body.enable_owner_email = el('enable_owner_email').checked;
+    body.enable_user_email = el('enable_user_email').checked;
+    busy(tpl.querySelector('button[type="submit"]'), async () => { const r = await api(`${base}/templates`, { method: 'PUT', body }); toast(r.message ?? 'Saved.'); });
+  });
+
+  $$<HTMLButtonElement>('[data-test]').forEach((b) => b.addEventListener('click', () => {
+    const to = $<HTMLInputElement>(`[data-test-to="${b.dataset.test}"]`).value.trim();
+    if (!to) return toast('Enter an email address for the test.');
+    busy(b, async () => {
+      const r = await api(`${base}/templates/test`, { method: 'POST', body: { template_type: b.dataset.test, test_email: to } });
+      toast(r.message ?? 'Test email sent.');
+    });
+  }));
+</script>

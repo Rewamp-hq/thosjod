@@ -1,0 +1,214 @@
+---
+// Deploy an assistant as a website chat widget.
+// API: GET /assistant/{id}/widget-config/info · POST /assistant/{id}/widget-config/save · DELETE /assistant/{id}/widget-config
+//      POST /assistant/widget-config/secret-key/generate
+//      Connection test (the same calls the embedded widget makes): POST /v1/chat/token · POST /v1/chat/initiate
+//      GET /v1/chat/config · POST /v1/chat/refresh
+import AppShell from '../../../layouts/AppShell.astro';
+import AppHeader from '../../../components/app/AppHeader.astro';
+import Icon from '../../../components/Icon.astro';
+---
+
+<AppShell title="Deploy" description="Put the assistant on your website.">
+  <AppHeader title="Deploy" crumbs={[{ label: 'Assistants', href: '/app/assistants' }]} desc="Style the chat widget, create its secret key, then paste one script tag into your site.">
+    <span data-status-pill></span>
+  </AppHeader>
+
+  <form class="grid-main" data-form>
+    <div style="display:grid;gap:16px;min-width:0">
+      <section class="acard">
+        <div class="acard-head"><div><p class="acard-title">1. Appearance</p><p class="acard-sub">Every option the widget supports, with its current value.</p></div></div>
+        <label class="field" style="margin-bottom:14px">Logo URL<input name="logo_url" type="url" placeholder="https://…/logo.png" /></label>
+        <div data-appearance class="appearance"><p class="muted">Loading…</p></div>
+      </section>
+    </div>
+
+    <div style="display:grid;gap:16px;min-width:0">
+      <section class="acard">
+        <div class="acard-head"><p class="acard-title">2. Access</p></div>
+        <label class="field">Secret key
+          <div class="inline-form">
+            <input class="input mono" name="secret_key" readonly placeholder="Generate a key" />
+            <button type="button" class="abtn abtn-ghost" data-gen>Generate</button>
+          </div>
+          <span class="field-hint">Used by the widget to get short-lived chat tokens. Treat it like a password.</span>
+        </label>
+        <label class="field" style="margin-top:12px">Allowed origins
+          <textarea name="allowed_origins" rows="3" placeholder="https://www.example.com&#10;https://shop.example.com"></textarea>
+          <span class="field-hint">One per line. Sites where the widget may be embedded.</span>
+        </label>
+        <div class="toggle-row" style="margin-top:8px">
+          <span>Widget live<small>Turn off to stop the widget answering without removing it.</small></span>
+          <label class="switch"><input type="checkbox" name="is_active" checked /><span></span></label>
+        </div>
+        <button type="submit" class="abtn" style="margin-top:12px;width:100%;justify-content:center">Save &amp; publish</button>
+      </section>
+
+      <section class="acard">
+        <div class="acard-head"><p class="acard-title">3. Install</p><button type="button" class="abtn abtn-ghost abtn-sm" data-copy><Icon name="copy" size={14} />Copy</button></div>
+        <pre class="keybox snippet" data-snippet>Save a secret key to get your embed code.</pre>
+        <p class="field-hint" style="margin-top:8px">Paste before <code>&lt;/body&gt;</code> on every page that should show the chat.</p>
+      </section>
+
+      <section class="acard">
+        <div class="acard-head"><div><p class="acard-title">Connection test</p><p class="acard-sub">Runs the widget's own sign-in flow with the saved key.</p></div><button type="button" class="abtn abtn-ghost abtn-sm" data-test>Run test</button></div>
+        <ol class="checks" data-checks></ol>
+      </section>
+
+      <section class="acard danger">
+        <div class="acard-head"><div><p class="acard-title">Remove widget</p><p class="acard-sub">Deletes this widget's configuration. Sites using the script stop showing the chat.</p></div><button type="button" class="abtn abtn-danger abtn-sm" data-remove>Remove</button></div>
+      </section>
+    </div>
+  </form>
+</AppShell>
+
+<script>
+  import { api, assistantId, API_ORIGIN, WIDGET_ORIGIN, esc, pill, toast, busy, confirmAction, $, $$ } from '../../../lib/api';
+
+  const id = assistantId();
+  if (!id) location.href = '/app/assistants';
+  const base = `/assistant/${id}/widget-config`;
+  api(`/assistant/${id}`).then((a) => $$('[data-assistant-name]').forEach((el) => (el.textContent = a.name))).catch((e) => toast(e.message));
+
+  const form = $<HTMLFormElement>('[data-form]');
+  const el = <T extends Element = HTMLInputElement>(n: string) => form.elements.namedItem(n) as unknown as T;
+
+  // ---------- nested config <-> flat "a.b.c" paths
+  const flatten = (obj: any, prefix = ''): [string, string][] =>
+    Object.entries(obj ?? {}).flatMap(([k, v]) =>
+      v && typeof v === 'object' && !Array.isArray(v) ? flatten(v, `${prefix}${k}.`) : [[`${prefix}${k}`, Array.isArray(v) ? JSON.stringify(v) : String(v ?? '')] as [string, string]]);
+  const unflatten = (pairs: [string, string][]) => {
+    const out: any = {};
+    for (const [path, value] of pairs) {
+      const keys = path.split('.');
+      let node = out;
+      keys.slice(0, -1).forEach((k) => (node = node[k] ??= {}));
+      node[keys.at(-1)!] = value;
+    }
+    return out;
+  };
+  const label = (k: string) => k.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]/g, ' ').replace(/^./, (c) => c.toUpperCase());
+  const isColor = (v: string) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v.trim());
+
+  function renderAppearance(config: any) {
+    const groups = new Map<string, [string, string][]>();
+    for (const [path, value] of flatten(config)) {
+      const g = path.includes('.') ? path.split('.')[0] : 'general';
+      groups.set(g, [...(groups.get(g) ?? []), [path, value]]);
+    }
+    $('[data-appearance]').innerHTML = [...groups].map(([g, fields]) => `
+      <details class="source" ${g === [...groups.keys()][0] ? 'open' : ''}>
+        <summary><span class="strong">${esc(label(g))}</span><span class="muted">${fields.length} options</span></summary>
+        <div class="form-grid" style="padding:12px 0 4px">
+          ${fields.map(([path, v]) => {
+            const name = path.split('.').slice(g === 'general' ? 0 : 1).join(' › ');
+            const input = /^(true|false)$/i.test(v)
+              ? `<select data-path="${esc(path)}"><option ${v === 'true' ? 'selected' : ''}>true</option><option ${v === 'false' ? 'selected' : ''}>false</option></select>`
+              : isColor(v)
+                ? `<span class="color-in"><input type="color" value="${esc(v.length === 4 ? '#' + [...v.slice(1)].map((c) => c + c).join('') : v)}" data-color-for="${esc(path)}" /><input data-path="${esc(path)}" value="${esc(v)}" /></span>`
+                : `<input data-path="${esc(path)}" value="${esc(v)}" />`;
+            return `<label class="field">${esc(label(name))}${input}</label>`;
+          }).join('')}
+        </div>
+      </details>`).join('') || '<p class="muted">No appearance options are defined on the server.</p>';
+  }
+  $('[data-appearance]').addEventListener('input', (e) => {
+    const t = e.target as HTMLInputElement;
+    if (t.dataset.colorFor) $<HTMLInputElement>(`[data-path="${CSS.escape(t.dataset.colorFor)}"]`).value = t.value;
+    else if (t.dataset.path && isColor(t.value)) {
+      const picker = document.querySelector<HTMLInputElement>(`[data-color-for="${CSS.escape(t.dataset.path)}"]`);
+      if (picker && t.value.length === 7) picker.value = t.value;
+    }
+  });
+
+  // ---------- snippet + status
+  const snippet = (key: string) =>
+    `<script src="${WIDGET_ORIGIN}/widget.js"\n  data-secret-key="${key}"\n  data-api-url="${API_ORIGIN}"><\/script>`;
+  function paintStatus(info: any) {
+    $('[data-status-pill]').innerHTML = !info.widget_config_id ? pill('Not set up') : info.is_draft ? pill('Draft') : info.is_active ? pill('Live') : pill('Disabled');
+    const key = el('secret_key').value;
+    $('[data-snippet]').textContent = key && info.widget_config_id ? snippet(key) : 'Save a secret key to get your embed code.';
+  }
+
+  let info: any = {};
+  async function load() {
+    const res = await api(`${base}/info`);
+    info = res.data;
+    renderAppearance(info.appearance?.config);
+    el('logo_url').value = info.appearance?.logo_url ?? '';
+    el('secret_key').value = info.deploy?.secret_key ?? '';
+    el<HTMLTextAreaElement>('allowed_origins').value = (info.deploy?.allowed_origins ?? []).join('\n');
+    el('is_active').checked = info.widget_config_id ? !!info.is_active : true;
+    paintStatus(info);
+  }
+  load().catch((e) => toast(e.message));
+
+  $<HTMLButtonElement>('[data-gen]').addEventListener('click', (e) =>
+    busy(e.currentTarget as HTMLButtonElement, async () => {
+      const r = await api('/assistant/widget-config/secret-key/generate', { method: 'POST' });
+      el('secret_key').value = r.secret_key;
+      toast('New key generated - save to apply it.');
+    }));
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const config = unflatten($$<HTMLInputElement>('[data-path]').map((i) => [i.dataset.path!, i.value]));
+    const key = el('secret_key').value.trim();
+    const body = {
+      is_draft: !key,
+      is_active: el('is_active').checked,
+      appearance: { completed: true, logo_url: el('logo_url').value.trim() || null, config },
+      deploy: {
+        completed: !!key,
+        secret_key: key || null,
+        allowed_origins: el<HTMLTextAreaElement>('allowed_origins').value.split(/\s+/).map((s) => s.trim()).filter(Boolean),
+      },
+    };
+    busy(form.querySelector('button[type="submit"]'), async () => {
+      const r = await api(`${base}/save`, { method: 'POST', body });
+      toast(r.message ?? 'Saved.');
+      await load();
+    });
+  });
+
+  $<HTMLButtonElement>('[data-copy]').addEventListener('click', async () => {
+    if (!el('secret_key').value || !info.widget_config_id) return toast('Save a secret key first.');
+    try { await navigator.clipboard.writeText($('[data-snippet]').textContent!); toast('Embed code copied.'); }
+    catch { toast('Copy failed - select the code and copy it manually.'); }
+  });
+
+  // ---------- connection test: secret key -> chat token -> session -> config -> refresh
+  $<HTMLButtonElement>('[data-test]').addEventListener('click', (e) => busy(e.currentTarget as HTMLButtonElement, async () => {
+    const key = info.deploy?.secret_key;
+    const list = $('[data-checks]');
+    list.innerHTML = '';
+    const step = (text: string, ok: boolean, extra = '') =>
+      list.insertAdjacentHTML('beforeend', `<li class="${ok ? 'ok' : 'bad'}">${ok ? '✓' : '✕'} ${esc(text)}${extra ? ` <span class="muted">${esc(extra)}</span>` : ''}</li>`);
+    if (!key) return step('No saved secret key - generate one and save first.', false);
+    const call = async (path: string, init: RequestInit) => {
+      const res = await fetch(`${API_ORIGIN}${path}`, { ...init, headers: { 'Content-Type': 'application/json', ...(init.headers ?? {}) } });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.detail ?? `HTTP ${res.status}`);
+      return data;
+    };
+    try {
+      const tok = await call('/v1/chat/token', { method: 'POST', headers: { Authorization: `Bearer ${key}` }, body: JSON.stringify({ secret_key: key }) });
+      step('Secret key accepted, chat token issued', true, `expires in ${tok.expires_in}s`);
+      const sess = await call('/v1/chat/initiate', { method: 'POST', headers: { Authorization: `Bearer ${tok.access_token}` }, body: JSON.stringify({ is_playground: true, new_session: true, origin: location.origin }) });
+      step('Chat session started', true, sess.session_id);
+      const cfg = await call('/v1/chat/config', { headers: { Authorization: `Bearer ${tok.access_token}` } });
+      step('Widget configuration served', true, cfg.name ?? '');
+      await call('/v1/chat/refresh', { method: 'POST', headers: { Authorization: `Bearer ${sess.websocket.refresh_token}` } });
+      step('Session refresh works', true);
+      step('Ready - the embed code will work on your site.', true);
+    } catch (err) {
+      step((err as Error).message, false);
+    }
+  }));
+
+  $<HTMLButtonElement>('[data-remove]').addEventListener('click', async (e) => {
+    if (!info.widget_config_id) return toast('There is no widget to remove.');
+    if (!(await confirmAction('Remove this widget?', 'Its configuration and embed code stop working immediately. The assistant and its knowledge are kept.', 'Remove widget'))) return;
+    busy(e.currentTarget as HTMLButtonElement, async () => { await api(base, { method: 'DELETE' }); toast('Widget removed.'); await load(); });
+  });
+</script>
