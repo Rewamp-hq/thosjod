@@ -137,12 +137,17 @@ const inAssistant = assistantNav.some((i) => i.href === path);
   const id = new URLSearchParams(location.search).get('id');
   if (id) document.querySelectorAll<HTMLAnchorElement>('[data-keep-id]').forEach((a) => (a.href = `${a.pathname}?id=${encodeURIComponent(id)}`));
 
-  // ---- signed-in user
-  const user = session.user();
-  if (user) {
+  // ---- signed-in user; validated with GET /auth/me like AX_Chat_Fe's AuthProvider (a bad token logs out via api())
+  const showUser = (user: { name: string } | null) => {
+    if (!user) return;
     document.querySelector('[data-me-name]')!.textContent = user.name;
     document.querySelector('[data-me-initials]')!.textContent = user.name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
-  }
+  };
+  showUser(session.user());
+  api('/auth/me').then((user) => {
+    try { localStorage.setItem('tj-user', JSON.stringify(user)); } catch {}
+    showUser(user);
+  }).catch(() => {});
 
   // ---- workspace switcher + credits meter
   const sel = document.querySelector<HTMLSelectElement>('[data-ws-select]')!;
@@ -158,7 +163,8 @@ const inAssistant = assistantNav.some((i) => i.href === path);
   api<any[]>('/workspaces').then((list) => {
     if (!list.length) { sel.innerHTML = '<option>No workspace</option>'; return; }
     let current = session.workspace();
-    if (!list.some((w) => w.slug === current)) current = (list.find((w) => w.is_default) ?? list[0]).slug;
+    // Default like AX_Chat_Fe DashboardLayout: the user's own tenant workspace, else the first one
+    if (!list.some((w) => w.slug === current)) current = (list.find((w) => w.slug === session.user()?.tenant_slug) ?? list[0]).slug;
     session.setWorkspace(current!);
     sel.innerHTML = list.map((w) => `<option value="${esc(w.slug)}" ${w.slug === current ? 'selected' : ''}>${esc(w.name)}</option>`).join('');
     paint(list.find((w) => w.slug === current));

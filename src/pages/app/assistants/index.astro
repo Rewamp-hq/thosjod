@@ -52,9 +52,10 @@ import Icon from '../../../components/Icon.astro';
   const rows = $('[data-rows]');
   const empty = $('[data-empty]');
   let slug = '';
+  let wsId = ''; // AX_Chat_Fe lists and creates assistants by workspace id
 
   async function load() {
-    const list = await api<any[]>(`/assistant/workspace/${encodeURIComponent(slug)}`);
+    const list = await api<any[]>(`/assistant/workspace/${encodeURIComponent(wsId)}`);
     empty.style.display = list.length ? 'none' : 'flex';
     rows.innerHTML = list.map((a) => `
       <tr>
@@ -76,7 +77,8 @@ import Icon from '../../../components/Icon.astro';
   }
 
   api<any[]>('/assistant/models').then((models) => {
-    $('[data-models]').innerHTML = models.map((m) => `<option value="${m.id}" ${m.model === 'gemini-3.1-flash' ? 'selected' : ''}>${esc(m.name)}</option>`).join('');
+    // Same as AX_Chat_Fe CreateAssistantPage: the first model the backend lists is the default
+    $('[data-models]').innerHTML = models.map((m, i) => `<option value="${m.id}" ${i === 0 ? 'selected' : ''}>${esc(m.name)}</option>`).join('');
   }).catch((e) => toast(e.message));
 
   $<HTMLFormElement>('[data-create]').addEventListener('submit', async (e) => {
@@ -84,7 +86,7 @@ import Icon from '../../../components/Icon.astro';
     const form = e.currentTarget as HTMLFormElement;
     const data = Object.fromEntries(new FormData(form)) as Record<string, string>;
     await busy(form.querySelector('button[type="submit"]'), async () => {
-      const a = await api(`/assistant/workspace/${encodeURIComponent(slug)}`, { method: 'POST', body: data });
+      const a = await api(`/assistant/workspace/${encodeURIComponent(wsId)}`, { method: 'POST', body: data });
       form.closest('dialog')!.close();
       toast(`${a.name} created.`);
       location.href = `/app/assistants/knowledge?id=${a.id}`;
@@ -94,6 +96,7 @@ import Icon from '../../../components/Icon.astro';
   currentWorkspace().then((ws) => {
     if (!ws) { rows.innerHTML = '<tr><td colspan="5" class="muted">No workspace found.</td></tr>'; return; }
     slug = ws.slug;
+    wsId = ws.id;
     load().catch((e) => { rows.innerHTML = `<tr><td colspan="5" class="muted">${esc(e.message)}</td></tr>`; });
     loadUsage().catch(() => {});
   });

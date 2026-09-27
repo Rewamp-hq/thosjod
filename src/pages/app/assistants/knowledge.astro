@@ -101,7 +101,7 @@ import Icon from '../../../components/Icon.astro';
 </AppShell>
 
 <script>
-  import { api, assistantId, esc, fmtDate, pill, toast, busy, confirmAction, $, $$ } from '../../../lib/api';
+  import { api, API_BASE, assistantId, esc, fmtDate, pill, toast, busy, confirmAction, $, $$ } from '../../../lib/api';
 
   const id = assistantId();
   if (!id) location.href = '/app/assistants';
@@ -161,15 +161,8 @@ import Icon from '../../../components/Icon.astro';
       if (!(await confirmAction(`Delete “${f?.filename}”?`, 'The file and everything the assistant learned from it will be removed.'))) return;
       busy(t, async () => { await api(`${base}/files/${t.dataset.fileDel}`, { method: 'DELETE' }); toast('File deleted.'); loadFiles(); });
     }
-    if (t.dataset.fileDl) {
-      busy(t, async () => {
-        const res = await api<Response>(`${base}/files/${t.dataset.fileDl}/download`, { raw: true });
-        const url = URL.createObjectURL(await res.blob());
-        const a = Object.assign(document.createElement('a'), { href: url, download: files.find((x) => x.id === t.dataset.fileDl)?.filename ?? 'file' });
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-      });
-    }
+    // Same as AX_Chat_Fe FilesPage: a plain link to the download endpoint
+    if (t.dataset.fileDl) window.open(`${API_BASE}${base}/files/${t.dataset.fileDl}/download`, '_blank', 'noopener');
     if (t.dataset.fileDoc) {
       busy(t, async () => {
         const docs = await api<any[]>(`${base}/files/${t.dataset.fileDoc}/documents`);

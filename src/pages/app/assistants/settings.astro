@@ -1,6 +1,6 @@
 ---
 // Assistant general settings + call booking.
-// API: GET /assistant/{id}, GET /assistant/models, GET /assistant/industries, PUT /assistant/{id}
+// API (as AX_Chat_Fe): GET/PUT /assistant/{id}/general, GET /assistant/models, GET /assistant/industries
 import AppShell from '../../../layouts/AppShell.astro';
 import AppHeader from '../../../components/app/AppHeader.astro';
 
@@ -55,7 +55,7 @@ const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const form = $<HTMLFormElement>('[data-form]');
   const f = (n: string) => form.elements.namedItem(n) as HTMLInputElement;
 
-  Promise.all([api(`/assistant/${id}`), api<any[]>('/assistant/models'), api<any[]>('/assistant/industries')])
+  Promise.all([api(`/assistant/${id}/general`), api<any[]>('/assistant/models'), api<any[]>('/assistant/industries')])
     .then(([a, models, industries]) => {
       document.querySelectorAll('[data-assistant-name]').forEach((el) => (el.textContent = a.name));
       $('[data-models]').innerHTML = models.map((m) => `<option value="${m.id}" ${m.id === a.model_id ? 'selected' : ''}>${esc(m.name)}</option>`).join('');
@@ -90,7 +90,7 @@ const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       },
     };
     busy(form.querySelector('button[type="submit"]'), async () => {
-      const a = await api(`/assistant/${id}`, { method: 'PUT', body });
+      const a = await api(`/assistant/${id}/general`, { method: 'PUT', body });
       document.querySelectorAll('[data-assistant-name]').forEach((el) => (el.textContent = a.name));
       toast('Settings saved.');
     });

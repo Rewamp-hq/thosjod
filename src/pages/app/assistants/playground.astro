@@ -71,12 +71,22 @@ import Icon from '../../../components/Icon.astro';
     return el;
   }
 
+  let reconnectTimer: number | undefined;
+
   function connect() {
+    clearTimeout(reconnectTimer);
     const token = session.token();
     ws = new WebSocket(`${WS_BASE}/${encodeURIComponent(id)}?token=${encodeURIComponent(token ?? '')}`);
     setConn('Connecting…', 'amber');
     ws.onopen = () => setConn('Connected', 'green');
-    ws.onclose = () => { setConn('Disconnected', 'red'); ws = null; };
+    const self = ws;
+    ws.onclose = () => {
+      if (ws !== self) return; // replaced by "New chat"
+      setConn('Disconnected', 'red');
+      ws = null;
+      // Same as AX_Chat_Fe chat-window: reconnect after 3 seconds
+      reconnectTimer = window.setTimeout(connect, 3000);
+    };
     ws.onerror = () => setConn('Connection error', 'red');
     ws.onmessage = (ev) => {
       let msg: any;
@@ -105,7 +115,7 @@ import Icon from '../../../components/Icon.astro';
         input.disabled = false;
         input.focus();
       } else if (msg.type === 'error') {
-        bubble('agent', `<span style="color:#b4402a">${esc(msg.content)}</span>`);
+        bubble('agent', `<span style="color:#b4402a">⚠️ Error: ${esc(msg.content)}</span>`);
         current = null;
         input.disabled = false;
       }
@@ -124,8 +134,10 @@ import Icon from '../../../components/Icon.astro';
   $('[data-suggest]').addEventListener('click', (e) => { const b = (e.target as HTMLElement).closest<HTMLElement>('[data-q]'); if (b) send(b.dataset.q!); });
   $('[data-regen]').addEventListener('click', () => { if (ws?.readyState === WebSocket.OPEN) { input.disabled = true; ws.send(JSON.stringify({ action: 'regenerate' })); } });
   $('[data-reset]').addEventListener('click', () => {
-    ws?.send(JSON.stringify({ action: 'end' }));
-    ws?.close();
+    const old = ws;
+    ws = null; // so its onclose does not schedule a reconnect
+    if (old?.readyState === WebSocket.OPEN) old.send(JSON.stringify({ action: 'end' }));
+    old?.close();
     log.innerHTML = '<p class="csys">New chat started.</p>';
     $('[data-suggest]').innerHTML = '';
     connect();
@@ -146,7 +158,8 @@ import Icon from '../../../components/Icon.astro';
     node.addEventListener('submit', async (e) => {
       e.preventDefault();
       const d = Object.fromEntries(new FormData(node)) as Record<string, string>;
-      const body: Record<string, unknown> = { name: d.name, session_id: sessionId };
+      // Same body as AX_Chat_Fe submitPlaygroundLead
+      const body: Record<string, unknown> = { name: d.name, session_id: sessionId, meta_data: { source: 'playground' } };
       (['email', 'phone', 'message', 'meeting_at'] as const).forEach((k) => { if (d[k]) body[k] = d[k]; });
       try {
         await api(`/assistant/${id}/leads`, { method: 'POST', body, auth: false });
